@@ -1,0 +1,1 @@
+Rather than trying to build in a check for assigning a recipient twice to the same donor, after the spreadsheet is filled in, we could run a separate check looking for "duplicates" and easily spot the same number next to a single recpient.  This makes the main matching program more simple, I would think.

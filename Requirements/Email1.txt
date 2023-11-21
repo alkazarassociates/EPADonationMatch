@@ -1,0 +1,18 @@
+Mike, I think it is fairly certain that we will have a government shutdown in either January or the first couple of days in February.  Therefore, this project is not just theoretical.  In anticipation that you might be able to semi-automate the matching of the donors and the recipients, I have worked today to simplify the requirements by making a few compromises on the "perfect" system that I think don't give away too much.  What I am suggesting is only half as complex a system as it was before I started trimming the "nice to have requirements" off the system.
+
+With that in mind, attached are two spread sheets and here is a link to  video in which I explain them.  Zoom's recording will not show the split screen that I actually had up showing both spreadsheets at the same time, so you will need to look at a print out of the donor spreadsheet and then watch the video of what I propose happen to the recipient sheet.
+https://www.dropbox.com/scl/fi/7z5wgf9mwuaj7trv3mpks/Recording-of-back-end-matching-3-2023-11-20-17-11-19-279.mp4?rlkey=kztb2bwcl9oljlmeegefi2ekm&dl=0
+
+
+
+In short explanation of the program, recipients will be asked to specify which store they would like to have cards from.  Donors will specify how many cards they are willing to buy at $20 each.  We will try to have each donor   have to shop for only one brand of card (e.g. Safeway) but that may prove impossible depending on how extensive our list of recipients are, so as you will see in the video, I suggest we try to give them two kind of cards (e.g. Safeway and Walmart) to buy in those cases, and hopefully never have to give a donor three kinds, unless they are a donor of MANY cards.
+
+You will note that we have 10 columns (I filled up column 1 and began to fill up column 2.  This is because each recipient is expected to be given ten $20 cards (for a total of $200), so we need to fill out the 10 columns with donors, thereby ensuring that a recipient receives 10 cards within a few days rather than have the recipients have to wait a long time for the last cards to arrive.
+
+So, there seem to be only a few complicated commands:
+
+1) ensure that no donor receives a request from us to give to the same recipient more than once.  It would be illegal for the recipient to receive more than one $20 card from each donor, so we need to be careful. [$20 is the max amount, and it must be a store card, not cash]
+
+2) a less stringent requirement is how to we minimize (hopefully to 2) the names of stores donors have to buy cards from.
+
+Can you take a look, starting with the video, to see if you think this is feasible without having to spend lots of long hours on your part?
