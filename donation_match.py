@@ -3,11 +3,13 @@ donation_match:  Match donors to recipients, keeping legal requirements and fair
 """
 
 import argparse
+from collections import Counter
 import csv
 import random
 import sys
 
 DONOR_SLOTS = ['Donor 1', 'Donor 2', 'Donor 3', 'Donor 4', 'Donor 5', 'Donor 6', 'Donor 7', 'Donor 8', 'Donor 9', 'Donor 10']
+ITERATION_COUNT = 10000
 
 def donation_match(donors_list, recipients_list):
     donors = {}
@@ -107,7 +109,57 @@ def load_csv(filename):
         return list(r)
 
 def optimize(donors, recipients):
-    pass
+    # Try swapping donor/recipient pairs until we can't find one that improves our score.
+    iterations = 0
+    while iterations < ITERATION_COUNT:
+        if maybe_swap(donors, recipients):
+            iterations = 0
+        else:
+            iterations += 1
+
+def maybe_swap(donors, recipients):
+    previous_score = score(donors, recipients)
+    recipient1 = random.choice(list(recipients.values()))
+    donor_slot1 = random.choice([d for d in DONOR_SLOTS if recipient1[d]])
+    recipient2 = random.choice(list(recipients.values()))
+    donor_slot2 = random.choice([d for d in DONOR_SLOTS if recipient2[d]])
+    if recipient1 == recipient2:
+        return False
+    if recipient1[donor_slot1] == recipient2[donor_slot2]:
+        return False
+    recipient1[donor_slot1], recipient2[donor_slot2] = recipient2[donor_slot2], recipient1[donor_slot1]
+    new_score = score(donors, recipients)
+    if new_score > previous_score:
+        print(new_score)
+        return True
+    # Swap back
+    recipient1[donor_slot1], recipient2[donor_slot2] = recipient2[donor_slot2], recipient1[donor_slot1]
+    return False
+
+def score(donors, recipients):
+    # Basics that are most important, but actually probably already maximized.
+    total = 0
+    for r in recipients.values():
+        these_donors = set()
+        for d in DONOR_SLOTS:
+            if r[d]:
+                total += 100  # The most help we give everyone the better.
+                if r[d] in these_donors:
+                    return 0   # Violation of rule!
+                these_donors.add(r[d])
+    for d in donors.values():
+        stores = Counter()
+        these_recipients = [r for r in recipients.values() if has_donor(r, d)]
+        for r in these_recipients:
+            stores[r['Selected']] += 1
+        # Add points for every time we are the most popular store, plus
+        # less for second.  No points for third.
+        stz = stores.most_common(2)
+        total += stz[0][1] * 10
+        if len(stz) > 1:
+            total += stz[1][1]
+    return total
+        
 
 def has_donor(recipient, donor):
     for d in DONOR_SLOTS:
