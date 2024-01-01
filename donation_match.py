@@ -40,8 +40,10 @@ def donation_match(donors_list, recipients_list):
         make_pledge(donors, recipients)
         pledges -= 1
 
-    print(recipients)
-                
+    optimize(donors, recipients)
+    
+    return donors, recipients
+
 def make_pledge(donors, recipients):
     while True:  # Keep trying until find a recipient who we can give to.
         # Of the recipients who have received the least, pick one at random.
@@ -103,16 +105,59 @@ def load_csv(filename):
         r = csv.DictReader(csvfile)
 
         return list(r)
-        
+
+def optimize(donors, recipients):
+    pass
+
+def has_donor(recipient, donor):
+    for d in DONOR_SLOTS:
+        if recipient[d] == donor['Donor #']:
+            return True
+    return False
+
+def write_recipient_table(filename, recipients):
+    with open(filename, 'w', newline='') as csvfile:
+        fields = ['Recipient #','Status','EPA Email','Name','Home Email','Phone #','Selected','Donor 1','Donor 2','Donor 3','Donor 4','Donor 5','Donor 6','Donor 7','Donor 8','Donor 9','Donor 10']
+        w = csv.DictWriter(csvfile, fields, extrasaction='ignore')
+        for r in recipients.values():
+            w.writerow(r)
+
+donor_report_template = """
+------ Donor {Donor #} -----
+{First} {Last}:
+{Email}
+{recipient_list}
+"""
+
+recipient_template = """
+Store {Selected}
+{Name} {Home Email}
+
+"""
+def write_donors_report(filename, donors, recipients):
+    with open(filename, 'w') as report:
+        for donor in donors.values():
+            these_recipients = [r for r in recipients.values() if has_donor(r, donor)]
+            recipient_list = ''.join([recipient_template.format(**recipient) for recipient in these_recipients])
+            report.write(donor_report_template.format(**donor, recipient_list=recipient_list))
+
 def Main():
     parser = argparse.ArgumentParser(
         prog='donation_match',
         description="Match donors to recipients")
     parser.add_argument('donors')
     parser.add_argument('recipients')
+    parser.add_argument('--recip-out')
+    parser.add_argument('--donor-out')
     args = parser.parse_args()
-    donation_match(load_csv(args.donors), load_csv(args.recipients))
-    
+    d, r = donation_match(load_csv(args.donors), load_csv(args.recipients))
+
+    if args.recip_out:
+        write_recipient_table(args.recip_out, r)
+
+    if args.donor_out:
+        write_donors_report(args.donor_out, d, r)
+
 
 if __name__ == '__main__':
     sys.exit(Main())
