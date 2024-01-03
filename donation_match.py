@@ -15,6 +15,8 @@ def donation_match(donors_list, recipients_list):
     donors = {}
     pledges = 0
     for donor in donors_list:
+        if donor['Email'] == '':
+            continue
         donor['Donor #'] = int(donor['Donor #'])
         donor['remaining'] = int(donor['Pledge units'])
         pledges += donor['remaining']
@@ -22,6 +24,8 @@ def donation_match(donors_list, recipients_list):
 
     recipients = {}
     for recipient in recipients_list:
+        if recipient['EPA Email'] == '':
+            continue
         recipient['Recipient #'] = int(recipient['Recipient #'])
         recipient['received'] = 0
         recipient['Full'] = False
