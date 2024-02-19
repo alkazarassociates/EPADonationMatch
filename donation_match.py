@@ -53,9 +53,9 @@ def normalize_name(text: str) -> str:
     words = [x.strip() for x in text.split()]
     words = [x.lower() for x in words]
     words = [re.sub('[^a-z]', '', x) for x in words]
-    if words[0] in ['mr', 'mr.', 'mrs', 'mrs.', 'miss', 'ms.', 'mz.']:
+    if words[0] in ['mr', 'mrs', 'miss', 'ms', 'mz']:
         words = words[1:]
-    if words[-1] in ['junior', 'iii', 'iv']:
+    if words[-1] in ['junior', 'jr', 'iii', 'iv']:
         words = words[:-1]
     return words[0] + ' ' + words[-1]
 
@@ -99,8 +99,8 @@ class Recipient:
         # Name is actually Name and Address.  Fix it here.
         if 'Address' not in values:
             name, address = values['Name'].split(',', 1)
-            values['Name'] = name
-            values['Address'] = address
+            values['Name'] = name.strip()
+            values['Address'] = address.strip()
         return object_from_dict(Recipient, field_mapping,
                                 {'id': int, 'epa_email': lambda x: x.lower().strip(), 'no_e_card': mark_to_bool}, values)
 
