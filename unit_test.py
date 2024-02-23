@@ -2,7 +2,7 @@
 Test the functionality of individual parts of donation_match.
 """
 
-import donation_match as dm
+import donation_data as dd
 from dataclasses import dataclass, FrozenInstanceError
 import unittest
 
@@ -17,30 +17,30 @@ class TestMiscFunctions(unittest.TestCase):
     def test_object_from_dict(self):
         foobar_fields = {'name': 'Name', 'id': 'A B C', 'value': 'Money'}
         foobar_types = {'id': int, 'value': float }
-        mike = dm.object_from_dict(Foobar, foobar_fields, foobar_types, {'Name': 'Mike', 'A B C': '7', 'Money': '9'})
+        mike = dd.object_from_dict(Foobar, foobar_fields, foobar_types, {'Name': 'Mike', 'A B C': '7', 'Money': '9'})
         self.assertEqual(mike.name, 'Mike')
         self.assertEqual(mike.id, 7)
         self.assertEqual(mike.value, 9.0)
         with self.assertRaises(KeyError):
-            bad = dm.object_from_dict(Foobar, foobar_fields, foobar_types, {'Name': 'Bad', 'A B C': '3'})
+            bad = dd.object_from_dict(Foobar, foobar_fields, foobar_types, {'Name': 'Bad', 'A B C': '3'})
         # Other fields don't cause trouble
-        something = dm.object_from_dict(Foobar, foobar_fields, foobar_types, {'Name': 'Extra Guy', 'A B C': '47', 'Money': '98.2', 'Extraneous': 'ignored'})
+        something = dd.object_from_dict(Foobar, foobar_fields, foobar_types, {'Name': 'Extra Guy', 'A B C': '47', 'Money': '98.2', 'Extraneous': 'ignored'})
 
     def test_text_to_bool(self):
-        self.assertTrue(dm.text_to_bool('TRUE'))
-        self.assertTrue(dm.text_to_bool('True'))
-        self.assertTrue(dm.text_to_bool('true'))
-        self.assertFalse(dm.text_to_bool('FALSE'))
-        self.assertFalse(dm.text_to_bool('False'))
-        self.assertFalse(dm.text_to_bool('false'))
-        self.assertTrue(dm.mark_to_bool('X'))
-        self.assertFalse(dm.mark_to_bool(''))
+        self.assertTrue(dd.text_to_bool('TRUE'))
+        self.assertTrue(dd.text_to_bool('True'))
+        self.assertTrue(dd.text_to_bool('true'))
+        self.assertFalse(dd.text_to_bool('FALSE'))
+        self.assertFalse(dd.text_to_bool('False'))
+        self.assertFalse(dd.text_to_bool('false'))
+        self.assertTrue(dd.mark_to_bool('X'))
+        self.assertFalse(dd.mark_to_bool(''))
         with self.assertRaises(ValueError):
-            dm.text_to_bool('Yes')
+            dd.text_to_bool('Yes')
         with self.assertRaises(ValueError):
-            dm.text_to_bool('No')
+            dd.text_to_bool('No')
         with self.assertRaises(ValueError):
-            dm.mark_to_bool('?')
+            dd.mark_to_bool('?')
 
     def test_normalize_names(self):
         test_cases = {
@@ -51,10 +51,12 @@ class TestMiscFunctions(unittest.TestCase):
             'Gordo Zagnut-MarsBar, Jr': 'gordo zagnutmarsbar',
         }
         for name, expected in test_cases.items():
-            self.assertEqual(dm.normalize_name(name), expected)
+            self.assertEqual(dd.normalize_name(name), expected)
 
+
+class TestDonar(unittest.TestCase):
     def test_donor_parse(self):
-        d1 = dm.Donor.from_dict({'First': 'Mike', 'Last': 'Elkins', 'Email': 'foo@example.com', 'Pledge units': '8', 'Comments': 'test', 'Donor #': '25'})
+        d1 = dd.Donor.from_dict({'First': 'Mike', 'Last': 'Elkins', 'Email': 'foo@example.com', 'Pledge units': '8', 'Comments': 'test', 'Donor #': '25'})
         self.assertEqual(d1.first, 'Mike')
         self.assertEqual(d1.last, 'Elkins')
         self.assertEqual(d1.email, 'foo@example.com')
@@ -64,8 +66,10 @@ class TestMiscFunctions(unittest.TestCase):
         with self.assertRaises(FrozenInstanceError):
             d1.id = 7
 
+
+class TestRecipient(unittest.TestCase):
     def test_recipient_parse(self):
-        r1 = dm.Recipient.from_dict({'Recipient #': '109', 'Valid?': 'In process', 'Status': 'watching tv', 'EPA Email': 'aXz@Epa.Gov',
+        r1 = dd.Recipient.from_dict({'Recipient #': '109', 'Valid?': 'In process', 'Status': 'watching tv', 'EPA Email': 'aXz@Epa.Gov',
                                      'Name': 'Howard The Duck, 400 Penslyvania Ave, Washington, DC', 'No e-card': '', 'Home Email': 'foo@bar.com',
                                      'Selected': 'Petco', 'Phone #': '867-5309', 'Comments': 'quack'})
         self.assertEqual(r1.id, 109)
@@ -79,7 +83,7 @@ class TestMiscFunctions(unittest.TestCase):
         self.assertEqual(r1.phone, '867-5309')
         self.assertFalse(r1.no_e_card)
         self.assertEqual(r1.comments, 'quack')
-        r2 = dm.Recipient.from_dict({'Recipient #': '110', 'Valid?': 'True', 'Status': 'eating candy', 'EPA Email': 'ZXz@Epa.Gov',
+        r2 = dd.Recipient.from_dict({'Recipient #': '110', 'Valid?': 'True', 'Status': 'eating candy', 'EPA Email': 'ZXz@Epa.Gov',
                                      'Name': 'Squirel Girl', 'Address': 'Stark Tower, NYC', 'No e-card': 'X', 'Home Email': 'foo@bar.com',
                                      'Selected': 'Petco', 'Phone #': '867-5309', 'Comments': 'nuttin'})
         self.assertEqual(r2.id, 110)
@@ -93,6 +97,22 @@ class TestMiscFunctions(unittest.TestCase):
         self.assertEqual(r2.phone, '867-5309')
         self.assertTrue(r2.no_e_card)
         self.assertEqual(r2.comments, 'nuttin')
+
+    def test_update_recipients(self):
+        next_id = 100
+        def quick_recip(name: str, email: str):
+            nonlocal next_id
+            next_id += 1
+            return dd.Recipient(id=next_id, valid='True', status='Current', epa_email=email,
+                                name=name, address='123 baker st', home_email=None,
+                                store='Petco', phone='555-1234', no_e_card=False, comments='')
+        s = dd.State()
+        s.update_recipient(quick_recip('Adam Ant', 'foo@bar.gov'))
+        s.update_recipient(quick_recip('Bob Barker', 'foo2@bar.gov'))
+        with self.assertRaises(ValueError):
+            s.update_recipient(quick_recip('Charlie Cheater', 'foo@bar.gov'))
+        s.update_recipient(quick_recip('bob barker', 'foo3@bar.gov'))  # Should warn, not error
         
+
 if __name__ == '__main__':
     unittest.main()
