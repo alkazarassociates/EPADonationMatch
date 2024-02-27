@@ -11,6 +11,9 @@ import re
 from typing import DefaultDict
 
 
+NO_DATE_SUPPLIED = datetime.date(1980, 1, 1)
+
+
 def object_from_dict(cls, field_mapping, type_mapping, values):
     """Make some object of type cls, mapping fields from values into parameter names."""
     # First check that our object is ok and produce a good error message if not.
@@ -19,6 +22,7 @@ def object_from_dict(cls, field_mapping, type_mapping, values):
             raise KeyError(f"Could not find {source_field} in column names: {values.keys()}")
     parameters = {k: type_mapping.get(k, lambda x: x)(values[field_mapping[k]]) for k in field_mapping}
     return cls(**parameters)
+
 
 def convert_fields(cls, values):
     """Make a dataclass object out of properly named strings"""
@@ -74,13 +78,13 @@ class Donor:
     comments: str
     id: int
 
-    
     @staticmethod
     def from_dict(values):
         """Convert a dict of values into a donor object"""
         field_mapping = {'first': 'First', 'last': 'Last', 'email': 'Email', 'pledges': 'Pledge units',
                          'comments': 'Comments', 'id': 'Donor #'}
         return object_from_dict(Donor, field_mapping, {'pledges': int, 'id': int}, values)
+
 
 @dataclass(frozen=True)
 class Recipient:
@@ -100,15 +104,16 @@ class Recipient:
     def from_dict(values):
         """Convert a dict of values into a recipient object"""
         field_mapping = {'id': 'Recipient #', 'valid': 'Valid?', 'status': 'Status', 'epa_email': 'EPA Email',
-                         'name': 'Name', 'address': 'Address', 'home_email': 'Home Email', 'store': 'Selected', 'phone': 'Phone #',
-                         'no_e_card':'No e-card', 'comments': 'Comments'}
+                         'name': 'Name', 'address': 'Address', 'home_email': 'Home Email', 'store': 'Selected',
+                         'phone': 'Phone #', 'no_e_card': 'No e-card', 'comments': 'Comments'}
         # Name is actually Name and Address.  Fix it here.
         if 'Address' not in values:
             name, address = values['Name'].split(',', 1)
             values['Name'] = name.strip()
             values['Address'] = address.strip()
         return object_from_dict(Recipient, field_mapping,
-                                {'id': int, 'epa_email': lambda x: x.lower().strip(), 'no_e_card': mark_to_bool}, values)
+                                {'id': int, 'epa_email': lambda x: x.lower().strip(), 'no_e_card': mark_to_bool},
+                                values)
 
     def is_valid(self) -> bool:
         return self.valid.lower() == 'true'  # Anything else is False
@@ -119,6 +124,15 @@ class Donation:
     donor: int
     recipient: int
     date: datetime.date
+
+
+@dataclass
+class UpdateRecipientResult:
+    success: bool
+    new_count: int
+    new_to_validate: list[int]
+    errors: list[str]
+    warnings: list[str]
 
 
 # The current state of the donation match program.
@@ -153,39 +167,45 @@ class State:
             self._recipient_emails[recipient.epa_email] = recipient.name
             self._recipient_normalized_names[normalize_name(recipient.name)] = \
                 (recipient.name, recipient.id)
-    
-    def update_recipients(self, new_recipient_list: list[dict]) -> None:
+
+    def update_recipients(self, new_recipient_list: list[dict]) -> UpdateRecipientResult:
+        ret = UpdateRecipientResult(success=True, new_count=0, new_to_validate=list(), errors=list(), warnings=list())
         for recipient_dict in new_recipient_list:
             if not recipient_dict['Recipient #']:
                 continue  # Ignore incomplete recipients
             recipient = Recipient.from_dict(recipient_dict)
-            self.update_recipient(recipient)
+            self.update_recipient(recipient, ret)
             # If we have donations recorded in this recipient list, add them to the database.
             # This should be unusual, the result of manual editing.
             for key in recipient_dict:
                 if key.startswith('Donor ') and recipient_dict[key]:
-                    donation = Donation(donor=int(recipient_dict[key]), recipient = recipient.id, date=NO_DATE_SUPPLIED)
-                    print(f"Adding donation while updating recipients: {recipient.name} ({recipient.id}) from donor# {donation.donor}")
+                    donation = Donation(donor=int(recipient_dict[key]), recipient=recipient.id, date=NO_DATE_SUPPLIED)
+                    print(f"Adding donation while updating recipients: "
+                          "{recipient.name} ({recipient.id}) from donor# {donation.donor}")
                     self.add_donation(donation)
+        return ret
 
-    def update_recipient(self, recipient: Recipient) -> None:
+    def update_recipient(self, recipient: Recipient, result: UpdateRecipientResult) -> None:
         # "Memory" is assumed to be the source of truth, do not stomp with re-imported data.
         if recipient.id in self.recipients:
             return
         if recipient.epa_email in self._recipient_emails:
-            raise ValueError(f"Duplicate email addresses used for {self._recipient_emails[recipient.epa_email]} and {recipient.name}")
+            result.errors.append(f"Duplicate email addresses used for {self._recipient_emails[recipient.epa_email]} "
+                                 f"and {recipient.name}")
+            result.success = False
+            return
         self._recipient_emails[recipient.epa_email] = recipient.name
         name = normalize_name(recipient.name)
         if name in self._recipient_normalized_names:
             existing_name, existing_id = self._recipient_normalized_names[name]
             # Only warn about this, as the matching is not perfect.
-            print("Duplicate recipient found:")
-            print(f" {recipient.name}, Recipient # {recipient.id}")
-            print("might be")
-            print(f" {existing_name}, Recipient # {existing_id}")
+            result.warnings.append(f"Duplicate recipient found:\n {recipient.name}, Recipient # {recipient.id}\n"
+                                   f"might be\n {existing_name}, Recipient # {existing_id}")
         else:
             self._recipient_normalized_names[name] = (recipient.name, recipient.id)
         self.recipients[recipient.id] = recipient
+        result.new_to_validate.append(recipient.id)
+        result.new_count += 1
 
     # TODO Deal with better naming of add_donation and pledge
     def add_donation(self, donation: Donation) -> None:
@@ -219,9 +239,6 @@ class State:
     def donations_from(self, donor: Donor) -> int:
         return len(self._donations_from[donor.id])
 
-    def remaining_need(self, recipient: Recipient) -> int:
-        return DONATIONS_PER_RECIPIENT - self.donations_to(recipient) - EPAAA_DONATIONS
-
     def remaining_pledges(self, donor: Donor) -> int:
         return donor.pledges - self.donations_from(donor)
 
@@ -239,37 +256,6 @@ class State:
                 return True
         return False
 
-    # TODO Move this to donation_match.py
-    def donation_match(self) -> None:
-        for recipient in self.valid_recipients():
-            while self.remaining_need(recipient):
-                if not self.find_pledge(recipient):
-                    self.remove_new_pledges(recipient)
-                    break
-        self.optimize()
-
-    # TODO Move to donation_match.py
-    def find_pledge(self, recipient: Recipient) -> bool:
-        best_donor = None
-        best_store_count = 0
-        for donor in self.donors.values():
-            # Requirements:
-            # Has pledges remaining
-            # Has not given to this recipient.
-            #   Of those: pick the one with the most cards from this store.
-            if self.remaining_pledges(donor) > 0 and not self.has_given(recipient, donor):
-                store_count = self.calculate_store_count(donor, recipient.store)
-                if best_donor is None:
-                    best_donor = donor
-                    best_store_count = store_count
-                elif store_count > best_store_count:
-                    best_donor = donor
-                    best_store_count = store_count
-        if best_donor is not None:
-            self.pledge(best_donor, recipient)
-            return True
-        return False
-
     # TODO Should this be here or in donation_match?
     def remove_new_pledges(self, recipient: Recipient) -> None:
         for d in self.new_this_session:
@@ -278,18 +264,6 @@ class State:
                 self._donations_from[d.donor].remove(d.recipient)
                 self.donations.remove(d)
         self.new_this_session = [x for x in self.new_this_session if x.recipient != recipient.id]
-
-    # TODO Move to donation_match.py
-    def optimize(self) -> None:
-        # Try swapping donor/recipient pairs until we can't find
-        # one that improves our score
-        iterations = 0
-        while iterations < ITERATION_COUNT:
-            if self.try_to_swap():
-                print(iterations)
-                iterations = 0
-            else:
-                iterations += 1
 
     # TODO MOve to donation_match.py
     def try_to_swap(self):
@@ -336,32 +310,20 @@ class State:
 
     def write_recipient_table(self, filename: str) -> None:
         with open(filename, 'w', newline='') as csvfile:
-            fields = ['Recipient #','Status','EPA Email','Name','Home Email',
-                      'Phone #','Selected','Donor 1','Donor 2','Donor 3','Donor 4',
-                      'Donor 5','Donor 6','Donor 7','Donor 8','Donor 9','Donor 10']
+            fields = ['Recipient #', 'Status', 'EPA Email', 'Name', 'Home Email',
+                      'Phone #', 'Selected', 'Donor 1', 'Donor 2', 'Donor 3', 'Donor 4',
+                      'Donor 5', 'Donor 6', 'Donor 7', 'Donor 8', 'Donor 9', 'Donor 10']
             w = csv.DictWriter(csvfile, fields, extrasaction='ignore')
             for r in self.recipients.values():
                 to_write = {
-                    'Recipient #': r.id, 'Status': r.status, 'EPA Email': r.epa_email,
-                    'Name': r.name + ',' + r.address, 'Home Email': r.home_email,
+                    'Recipient #': r.id, 'Status': r.status,
+                    'EPA Email': r.epa_email, 'Name': r.name + ',' + r.address, 'Home Email': r.home_email,
                     'Selected': r.store
                 }
                 for count, donor_id in enumerate(self._donations_to[r.id]):
                     assert count <= 9
                     to_write[f'Donor {count+1}'] = donor_id
                 w.writerow(to_write)
-
-    def write_donors_report(self, filename: str) -> None:
-        with open(filename, 'w') as report:
-            for donor in self.donors.values():
-                recipients = self._donations_from[donor.id]
-                recipient_list = ''.join(
-                    [recipient_template.format(**self.recipients[recipient])
-                     for recipient in recipients])
-                report.write(
-                    donor_report_template.format(**donor,
-                                                 recipient_list=recipient_list))
-
 
     def _swap_donation(self, d1: tuple[int, int], d2: tuple[int, int]) -> None:
         self._donations_to[self.donations[d1[0]].recipient].remove(self.donations[d1[0]].donor)
@@ -382,14 +344,13 @@ class State:
                                          date=self.donations[d2[0]].date)
         self.new_this_session[d1[1]] = self.donations[d1[0]]
         self.new_this_session[d2[1]] = self.donations[d2[0]]
-    
 
 
 def add_args(arg_parser):
     # No additional command line args needed yet.
     arg_parser.add_argument('--memory-dir', default=os.path.join(os.path.dirname(__file__), 'data'))
 
-    
+
 def load_csv(filename: str) -> list[dict]:
     if not os.path.exists(filename):
         return []
@@ -402,7 +363,7 @@ def load_csv(filename: str) -> list[dict]:
 def load_state(args):
     if not os.path.isdir(args.memory_dir):
         os.mkdir(args.memory_dir)
-    ret = State()    
+    ret = State()
     recipient_data = load_csv(os.path.join(args.memory_dir, 'recipients.csv'))
     if recipient_data:
         ret.load_recipients(recipient_data)
@@ -419,7 +380,7 @@ def save_state(args, data: State):
     _write_csv_file(args, 'recipients.csv', data.recipients.values())
     _write_csv_file(args, 'donors.csv', data.donors.values())
     _write_csv_file(args, 'donations.csv', data.donations)
-    
+
 
 def _write_csv_file(args, filename, things):
     if not things:

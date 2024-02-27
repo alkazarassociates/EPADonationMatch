@@ -6,6 +6,7 @@ import sys
 
 import donation_data
 
+
 def Main():
     parser = argparse.ArgumentParser(
         prog='update_recipients',
@@ -19,6 +20,7 @@ def Main():
     data.update_recipients(donation_data.load_csv(args.recipients))
 
     donation_data.save_state(args, data)
+
 
 if __name__ == '__main__':
     sys.exit(Main())
