@@ -135,6 +135,14 @@ class UpdateRecipientResult:
     warnings: list[str]
 
 
+@dataclass
+class UpdateDonorResult:
+    success: bool
+    new_count: int
+    errors: list[str]
+    warnings: list[str]
+
+
 # The current state of the donation match program.
 class State:
     def __init__(self) -> None:
@@ -147,7 +155,8 @@ class State:
         self._donations_to: DefaultDict[int, list[int]] = defaultdict(list)
         self._donations_from: DefaultDict[int, list[int]] = defaultdict(list)
 
-    def update_donors(self, new_donor_list: list[dict]) -> None:
+    def update_donors(self, new_donor_list: list[dict]) -> UpdateDonorResult:
+        ret = UpdateDonorResult(success=True, new_count=0, warnings=list(), errors=list())
         for donor_dict in new_donor_list:
             if not donor_dict['Donor #']:
                 continue  # Ignore incomplete donors
@@ -155,6 +164,15 @@ class State:
             # "Memory" is assumed to be corrected, do not stomp with re-imported data.
             if donor.id in self.donors:
                 continue
+            self.donors[donor.id] = donor
+            ret.new_count += 1
+        return ret
+
+    def load_donors(self, data):
+        assert not self.donors, "Loading donors twice"
+        for donor_dict in data:
+            donor = Donor(**convert_fields(Donor, donor_dict))
+            assert donor.id not in self.donors
             self.donors[donor.id] = donor
 
     def load_recipients(self, data):
@@ -367,8 +385,8 @@ def load_state(args):
     recipient_data = load_csv(os.path.join(args.memory_dir, 'recipients.csv'))
     if recipient_data:
         ret.load_recipients(recipient_data)
-    donar_data = load_csv(os.path.join(args.memory_dir, 'donors.csv'))
-    if donar_data:
+    donor_data = load_csv(os.path.join(args.memory_dir, 'donors.csv'))
+    if donor_data:
         ret.load_donors(donor_data)
     donation_data = load_csv(os.path.join(args.memory_dir, 'donations.csv'))
     if donation_data:
