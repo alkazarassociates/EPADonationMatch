@@ -105,6 +105,8 @@ def donation_match(data: dd.State) -> MatchResult:
 def optimize(data: dd.State) -> None:
     # Try swapping donor/recipient pairs until we can't find
     # one that improves our score
+    if len(data.new_this_session) == 0:
+        return
     iterations = 0
     while iterations < ITERATION_COUNT:
         if try_to_swap(data):
