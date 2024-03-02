@@ -4,6 +4,7 @@ fairness in mind.
 """
 
 import argparse
+from dataclasses import dataclass
 import os
 import random
 import sys
@@ -56,13 +57,49 @@ def find_valid_pledge(data: dd.State, recipient: dd.Recipient) -> bool:
     return False
 
 
-def donation_match(data: dd.State) -> None:
+def try_to_swap(data: dd.State) -> bool:
+    previous_score = data.score()
+    new_index1 = random.randrange(len(data.new_this_session))
+    donation1 = data.new_this_session[new_index1]
+    new_index2 = random.randrange(len(data.new_this_session))
+    if new_index1 == new_index2:
+        return False
+    donation2 = data.new_this_session[new_index2]
+    if donation1.recipient == donation2.recipient:
+        return False
+    if donation1.donor == donation2.donor:
+        return False
+    if data.has_given_id(donation1.recipient, donation2.donor):
+        return False
+    if data.has_given_id(donation2.recipient, donation1.donor):
+        return False
+    index1 = data.donations.index(donation1)
+    index2 = data.donations.index(donation2)
+    data._swap_donation((index1, new_index1), (index2, new_index2))
+    new_score = data.score()
+    if new_score > previous_score:
+        print(new_score, end='')
+        return True
+    # Swap back
+    data._swap_donation((index2, new_index2), (index1, new_index1))
+    return False
+
+
+@dataclass
+class MatchResult:
+    success: bool
+
+
+def donation_match(data: dd.State) -> MatchResult:
+    result = MatchResult(success=True)
     for recipient in data.valid_recipients():
         while recipient_remaining_need(data, recipient):
             if not find_valid_pledge(data, recipient):
                 data.remove_new_pledges(recipient)
                 break
     optimize(data)
+    data.validate()
+    return result
 
 
 def optimize(data: dd.State) -> None:
@@ -70,48 +107,35 @@ def optimize(data: dd.State) -> None:
     # one that improves our score
     iterations = 0
     while iterations < ITERATION_COUNT:
-        if data.try_to_swap():
-            print(iterations)
+        if try_to_swap(data):
+            print(f" after {iterations} iterations")
             iterations = 0
         else:
             iterations += 1
 
 
-def write_donors_report(data: dd.State, filename: str) -> None:
-    with open(filename, 'w') as report:
-        for donor in data.donors.values():
-            recipients = data._donations_from[donor.id]
-            recipient_list = ''.join(
-                [recipient_template.format(**data.recipients[recipient])
-                 for recipient in recipients])
-            report.write(
-                donor_report_template.format(**donor,
-                                             recipient_list=recipient_list))
+def report(result: MatchResult, data: dd.State) -> str:
+    if result.success:
+        return "Success"
+    else:
+        return "Donation match failed."
 
 
 def Main():
     parser = argparse.ArgumentParser(
         prog='donation_match',
         description="Match donors to recipients")
-    parser.add_argument('donors')
-    parser.add_argument('recipients')
-    parser.add_argument('--memory', default='memory.csv')
-    parser.add_argument('--recip-out')
-    parser.add_argument('--donor-out')
+    dd.add_args(parser)
     args = parser.parse_args()
 
-    data = load_state(args.memory)
-    data.update_donors(load_csv(args.donors))
-    data.update_recipients(load_csv(args.recipients))
-    data.donation_match()
+    data = dd.load_state(args)
 
-    if args.recip_out:
-        data.write_recipient_table(args.recip_out)
+    result = donation_match(data)
 
-    if args.donor_out:
-        data.write_donors_report(args.donor_out)
+    if result.success:
+        dd.save_state(args, data)
 
-    data.write_memory()
+    print(report(result, data))
 
 
 if __name__ == '__main__':

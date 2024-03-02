@@ -31,6 +31,8 @@ def convert_fields(cls, values):
             # Special case booleans, as bool('False') == True
             if field.type == bool:
                 values[field.name] = text_to_bool(values[field.name])
+            if field.type == datetime.date:
+                values[field.name] = datetime.date.fromisoformat(values[field.name])
             else:
                 values[field.name] = field.type(values[field.name])
     return values
@@ -168,14 +170,14 @@ class State:
             ret.new_count += 1
         return ret
 
-    def load_donors(self, data):
+    def load_donors(self, data) -> None:
         assert not self.donors, "Loading donors twice"
         for donor_dict in data:
             donor = Donor(**convert_fields(Donor, donor_dict))
             assert donor.id not in self.donors
             self.donors[donor.id] = donor
 
-    def load_recipients(self, data):
+    def load_recipients(self, data) -> None:
         assert not self.recipients, "Loading recipients twice"
         for recipient_dict in data:
             recipient = Recipient(**convert_fields(Recipient, recipient_dict))
@@ -185,6 +187,12 @@ class State:
             self._recipient_emails[recipient.epa_email] = recipient.name
             self._recipient_normalized_names[normalize_name(recipient.name)] = \
                 (recipient.name, recipient.id)
+
+    def load_donations(self, data) -> None:
+        assert not self.donations, "Loading donations twice"
+        for donation_dict in data:
+            donation = Donation(**convert_fields(Donation, donation_dict))
+            self.add_donation(donation)
 
     def update_recipients(self, new_recipient_list: list[dict]) -> UpdateRecipientResult:
         ret = UpdateRecipientResult(success=True, new_count=0, new_to_validate=list(), errors=list(), warnings=list())
@@ -274,6 +282,9 @@ class State:
                 return True
         return False
 
+    def has_given_id(self, recipient: int, donor: int) -> bool:
+        return self.has_given(self.recipients[recipient], self.donors[donor])
+
     # TODO Should this be here or in donation_match?
     def remove_new_pledges(self, recipient: Recipient) -> None:
         for d in self.new_this_session:
@@ -282,30 +293,6 @@ class State:
                 self._donations_from[d.donor].remove(d.recipient)
                 self.donations.remove(d)
         self.new_this_session = [x for x in self.new_this_session if x.recipient != recipient.id]
-
-    # TODO MOve to donation_match.py
-    def try_to_swap(self):
-        previous_score = self.score()
-        new_index1 = random.randrange(len(self.new_this_session))
-        donation1 = self.new_this_session[new_index1]
-        new_index2 = random.randrange(len(self.new_this_session))
-        if new_index1 == new_index2:
-            return False
-        donation2 = self.new_this_session[new_index2]
-        if donation1.recipient == donation2.recipient:
-            return False
-        if donation1.donor == donation2.donor:
-            return False
-        index1 = self.donations.index(donation1)
-        index2 = self.donations.index(donation2)
-        self._swap_donation((index1, new_index1), (index2, new_index2))
-        new_score = self.score()
-        if new_score > previous_score:
-            print(new_score)
-            return True
-        # Swap back
-        self._swap_donation((index2, new_index2), (index1, new_index1))
-        return False
 
     # TODO Move to donation_match.py
     def score(self) -> int:
@@ -363,9 +350,43 @@ class State:
         self.new_this_session[d1[1]] = self.donations[d1[0]]
         self.new_this_session[d2[1]] = self.donations[d2[0]]
 
+    def validate(self):
+        # Every recipient has an entry for email and normalized name
+        #  It's ok for it not to point to THAT recipient.
+        # Every donation has a valid donor and recipient.
+        # Each donation donor/recipient pair is unique.
+        # No donor has more than their desired donations.
+        # No recipient has more than the proper number of donations.
+        # Warn if any invalid recipient has donations.
+        for r in self.recipients:
+            assert self.recipients[r].epa_email in self._recipient_emails
+            assert normalize_name(self.recipients[r].name) in self._recipient_normalized_names
+        donation_set = set()
+        for donation in self.donations:
+            assert donation.recipient in self.recipients
+            assert donation.donor in self.donors
+            assert (donation.recipient, donation.donor) not in donation_set
+            donation_set.add((donation.recipient, donation.donor))
+            assert donation.donor in self._donations_to[donation.recipient]
+            assert donation.recipient in self._donations_from[donation.donor]
+        for donor in self.donors:
+            count = 0
+            for donation in self.donations:
+                if donation.donor == donor:
+                    count += 1
+            assert count <= self.donors[donor].pledges
+        for recipient in self.recipients:
+            count = 0
+            for donation in self.donations:
+                if donation.recipient == recipient:
+                    count += 1
+            assert count <= 9   # This is dependent on numbers in donation_match
+            if not self.recipients[recipient].is_valid and count > 0:
+                print("WARNING: Invalid recipient has received donations")
+
 
 def add_args(arg_parser):
-    # No additional command line args needed yet.
+    """Add command line arguments common to all users of data"""
     arg_parser.add_argument('--memory-dir', default=os.path.join(os.path.dirname(__file__), 'data'))
 
 
