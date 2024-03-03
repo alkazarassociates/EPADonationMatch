@@ -515,6 +515,6 @@ def update_donor_view(args, data: State) -> None:
             for r in by_donor[donor]:
                 recip = data.recipients[r]
                 phys = '*' if recip.no_e_card else ''
-                columns.append(f'{recip.name}, {recip.address} {recip.home_email} {recip.store}{phys} {recip.phone}')
+                columns.append(f'{recip.name}, {recip.address} {recip.home_email} {recip.phone} {recip.store}{phys}   ')
             w.writerow(columns)
     print("Wrote " + path)
