@@ -8,6 +8,7 @@ import dataclasses
 import datetime
 import os
 import re
+import shutil
 from typing import DefaultDict
 
 
@@ -424,7 +425,8 @@ def save_state(args, data: State):
 def _write_csv_file(args, filename, things):
     if not things:
         return
-    with open(os.path.join(args.memory_dir, filename), 'w', newline='') as outfile:
+    path = os.path.join(args.memory_dir, filename)
+    with open(path, 'w', newline='') as outfile:
         wrote_headers = False
         w = csv.writer(outfile)
         for thing in things:
@@ -432,3 +434,48 @@ def _write_csv_file(args, filename, things):
                 w.writerow([x.name for x in dataclasses.fields(thing)])
                 wrote_headers = True
             w.writerow(dataclasses.asdict(thing).values())
+
+
+def update_recipient_view(args, data: State) -> None:
+    """TODO Write an auditable report of all recipients"""
+    pass
+
+
+def update_donor_view(args, data: State) -> None:
+    """Create a report ready for mail merge of new donations."""
+    path = os.path.join(args.memory_dir, 'donation_view.csv')
+    if os.path.exists(path):
+        backup_number = 0
+        while True:
+            backup_number += 1
+            candidate = os.path.join(args.memory_dir, 'donation_view_' + str(backup_number) + '.old')
+            if not os.path.exists(candidate):
+                shutil.move(path, candidate)
+                break
+
+    by_donor = {}
+    max_donations = 0
+    for donation in data.new_this_session:
+        if donation.donor not in by_donor:
+            by_donor[donation.donor] = []
+        by_donor[donation.donor].append(donation.recipient)
+        if len(by_donor[donation.donor]) > max_donations:
+            max_donations = len(by_donor[donation.donor])
+
+    headings = ['First', 'Last', 'Email', 'Pledge', 'Donor #']
+    for i in range(max_donations):
+        headings.append('Recipient ' + str(i + 1))
+    with open(path, 'w', newline='') as outfile:
+        w = csv.writer(outfile)
+        w.writerow(headings)
+        for donor in by_donor:
+            columns = [data.donors[donor].first, data.donors[donor].last,
+                       data.donors[donor].email, data.donors[donor].pledges,
+                       data.donors[donor].id]
+            for r in by_donor[donor]:
+                recip = data.recipients[r]
+                phys = '*' if recip.no_e_card else ''
+                columns.append(f'{recip.name}, {recip.address} {recip.home_email} {recip.store}{phys} {recip.phone}')
+            w.writerow(columns)
+    print("Wrote " + path)
+

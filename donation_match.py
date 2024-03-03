@@ -137,6 +137,9 @@ def Main():
     if result.success:
         dd.save_state(args, data)
 
+        dd.update_recipient_view(args, data)
+        dd.update_donor_view(args, data)
+
     print(report(result, data))
 
 
