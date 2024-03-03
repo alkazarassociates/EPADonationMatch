@@ -107,7 +107,7 @@ class Recipient:
     @staticmethod
     def from_dict(values):
         """Convert a dict of values into a recipient object"""
-        field_mapping = {'id': 'Recipient #', 'valid': 'True', 'status': 'Status', 'epa_email': 'EPA Email',
+        field_mapping = {'id': 'Recipient #', 'valid': 'TRUE', 'status': 'Status', 'epa_email': 'EPA Email',
                          'name': 'Name', 'address': 'Address', 'home_email': 'Home Email', 'store': 'Selected',
                          'phone': 'Phone #', 'no_e_card': 'No e-card', 'comments': 'Comments'}
         # Name is actually Name and Address.  Fix it here.
