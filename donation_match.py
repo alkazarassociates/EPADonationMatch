@@ -40,17 +40,19 @@ def find_valid_pledge(data: dd.State, recipient: dd.Recipient) -> bool:
     best_store_count = 0
     for donor in data.donors.values():
         # Requirements:
+        # Not be EPAAA itself
         # Has pledges remaining
         # Has not given to this recipient.
         #   Of those: pick the one with the most cards from this store.
-        if data.remaining_pledges(donor) > 0 and not data.has_given(recipient, donor):
-            store_count = data.calculate_store_count(donor, recipient.store)
-            if best_donor is None:
-                best_donor = donor
-                best_store_count = store_count
-            elif store_count > best_store_count:
-                best_donor = donor
-                best_store_count = store_count
+        if donor.id != dd.ASSOCIATION_ID:
+            if data.remaining_pledges(donor) > 0 and not data.has_given(recipient, donor):
+                store_count = data.calculate_store_count(donor, recipient.store)
+                if best_donor is None:
+                    best_donor = donor
+                    best_store_count = store_count
+                elif store_count > best_store_count:
+                    best_donor = donor
+                    best_store_count = store_count
     if best_donor is not None:
         data.pledge(best_donor, recipient)
         return True
@@ -61,6 +63,8 @@ def try_to_swap(data: dd.State) -> bool:
     previous_score = data.score()
     new_index1 = random.randrange(len(data.new_this_session))
     donation1 = data.new_this_session[new_index1]
+    if donation1.donor == dd.ASSOCIATION_ID:
+        return False
     new_index2 = random.randrange(len(data.new_this_session))
     if new_index1 == new_index2:
         return False
@@ -68,6 +72,8 @@ def try_to_swap(data: dd.State) -> bool:
     if donation1.recipient == donation2.recipient:
         return False
     if donation1.donor == donation2.donor:
+        return False
+    if donation2.donor == dd.ASSOCIATION_ID:
         return False
     if data.has_given_id(donation1.recipient, donation2.donor):
         return False
@@ -88,17 +94,28 @@ def try_to_swap(data: dd.State) -> bool:
 @dataclass
 class MatchResult:
     success: bool
+    new_donations: int
+
+
+def add_final_pledges(data: dd.State, recipient: dd.Recipient) -> None:
+    while data.donations_to(recipient) < DONATIONS_PER_RECIPIENT:
+        assert data.epaaa is not None
+        data.pledge(data.epaaa, recipient)
 
 
 def donation_match(data: dd.State) -> MatchResult:
-    result = MatchResult(success=True)
+    result = MatchResult(success=True, new_donations=0)
     for recipient in data.valid_recipients():
-        while recipient_remaining_need(data, recipient):
+        while recipient_remaining_need(data, recipient) > 0:
             if not find_valid_pledge(data, recipient):
                 data.remove_new_pledges(recipient)
                 break
+            # Fill in final pledges.
+            if recipient_remaining_need(data, recipient) == 0:
+                add_final_pledges(data, recipient)
     optimize(data)
     data.validate()
+    result.new_donations = len(data.new_this_session)
     return result
 
 
@@ -118,7 +135,7 @@ def optimize(data: dd.State) -> None:
 
 def report(result: MatchResult, data: dd.State) -> str:
     if result.success:
-        return "Success"
+        return f"Success, {result.new_donations} donations assigned."
     else:
         return "Donation match failed."
 

@@ -9,10 +9,11 @@ import datetime
 import os
 import re
 import shutil
-from typing import DefaultDict, Dict
+from typing import DefaultDict, Dict, Optional
 
 
 NO_DATE_SUPPLIED = datetime.date(1980, 1, 1)
+ASSOCIATION_ID = 1
 
 
 def object_from_dict(cls, field_mapping, type_mapping, values):
@@ -149,6 +150,7 @@ class UpdateDonorResult:
 # The current state of the donation match program.
 class State:
     def __init__(self) -> None:
+        self.epaaa: Optional[Donor] = None
         self.donors: dict[int, Donor] = {}
         self.recipients: dict[int, Recipient] = {}
         self.donations: list[Donation] = []
@@ -169,6 +171,14 @@ class State:
                 continue
             self.donors[donor.id] = donor
             ret.new_count += 1
+            if donor.id == ASSOCIATION_ID:
+                assert self.epaaa is None
+                self.epaaa = donor
+        # By the time we are done updating donors, even the first time, we should have
+        # The EPAAA defined.
+        if self.epaaa is None:
+            ret.success = False
+            ret.errors.append(f"No definition for EPAAA as a donor with ID {ASSOCIATION_ID}")
         return ret
 
     def load_donors(self, data) -> None:
@@ -177,6 +187,9 @@ class State:
             donor = Donor(**convert_fields(Donor, donor_dict))
             assert donor.id not in self.donors
             self.donors[donor.id] = donor
+            if donor.id == ASSOCIATION_ID:
+                assert not self.epaaa
+                self.epaaa = donor
 
     def load_recipients(self, data) -> None:
         assert not self.recipients, "Loading recipients twice"
@@ -305,6 +318,8 @@ class State:
         for r in self.recipients.values():
             total += 100 * self.donations_to(r)
         for donor in self.donors.values():
+            if donor.id == ASSOCIATION_ID:
+                continue
             stores: Counter = Counter()
             for recipient_id in self._donations_from[donor.id]:
                 stores[self.recipients[recipient_id].store] += 1
@@ -378,13 +393,13 @@ class State:
             for donation in self.donations:
                 if donation.donor == donor:
                     count += 1
-            assert count <= self.donors[donor].pledges
+            assert donor == ASSOCIATION_ID or count <= self.donors[donor].pledges
         for recipient in self.recipients:
             count = 0
             for donation in self.donations:
                 if donation.recipient == recipient:
                     count += 1
-            assert count <= 9   # This is dependent on numbers in donation_match
+            assert count <= 10   # This is dependent on numbers in donation_match
             if not self.recipients[recipient].is_valid and count > 0:
                 print("WARNING: Invalid recipient has received donations")
 
@@ -479,6 +494,8 @@ def update_donor_view(args, data: State) -> None:
     by_donor: Dict[int, list[int]] = {}
     max_donations: int = 0
     for donation in data.new_this_session:
+        if donation.donor == ASSOCIATION_ID:
+            continue
         if donation.donor not in by_donor:
             by_donor[donation.donor] = []
         by_donor[donation.donor].append(donation.recipient)
