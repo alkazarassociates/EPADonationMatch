@@ -73,7 +73,7 @@ class TestDonar(unittest.TestCase):
 
 class TestRecipient(unittest.TestCase):
     def test_recipient_parse(self):
-        r1 = dd.Recipient.from_dict({'Recipient #': '109', 'Valid?': 'In process', 'Status': 'watching tv',
+        r1 = dd.Recipient.from_dict({'Recipient #': '109', 'True': 'In process', 'Status': 'watching tv',
                                      'EPA Email': 'aXz@Epa.Gov',
                                      'Name': 'Howard The Duck, 400 Penslyvania Ave, Washington, DC', 'No e-card': '',
                                      'Home Email': 'foo@bar.com', 'Selected': 'Petco', 'Phone #': '867-5309',
@@ -89,7 +89,7 @@ class TestRecipient(unittest.TestCase):
         self.assertEqual(r1.phone, '867-5309')
         self.assertFalse(r1.no_e_card)
         self.assertEqual(r1.comments, 'quack')
-        r2 = dd.Recipient.from_dict({'Recipient #': '110', 'Valid?': 'True', 'Status': 'eating candy',
+        r2 = dd.Recipient.from_dict({'Recipient #': '110', 'True': 'True', 'Status': 'eating candy',
                                      'EPA Email': 'ZXz@Epa.Gov', 'Name': 'Squirel Girl', 'Address': 'Stark Tower, NYC',
                                      'No e-card': 'X', 'Home Email': 'foo@bar.com', 'Selected': 'Petco',
                                      'Phone #': '867-5309', 'Comments': 'nuttin'})
