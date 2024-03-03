@@ -9,7 +9,7 @@ import datetime
 import os
 import re
 import shutil
-from typing import DefaultDict
+from typing import DefaultDict, Dict
 
 
 NO_DATE_SUPPLIED = datetime.date(1980, 1, 1)
@@ -263,6 +263,9 @@ class State:
     def donations_to(self, recipient: Recipient) -> int:
         return len(self._donations_to[recipient.id])
 
+    def donors_for(self, recip_id: int) -> list[int]:
+        return self._donations_to[recip_id]
+
     def donations_from(self, donor: Donor) -> int:
         return len(self._donations_from[donor.id])
 
@@ -437,8 +440,27 @@ def _write_csv_file(args, filename, things):
 
 
 def update_recipient_view(args, data: State) -> None:
-    """TODO Write an auditable report of all recipients"""
-    pass
+    """Write an auditable report of all recipients"""
+    path = os.path.join(args.memory_dir, 'recipient_view.csv')
+    with open(path, 'w', newline='') as outfile:
+        max_donations = 0
+        for recip in data.valid_recipients():
+            if data.donations_to(recip) > max_donations:
+                max_donations = data.donations_to(recip)
+        w = csv.writer(outfile)
+        headings = ['Name', 'Recipient #']
+        for i in range(max_donations):
+            headings.append(f'Donor {i + 1}')
+        w.writerow(headings)
+        for recip in data.valid_recipients():
+            has_donation = False
+            row = [recip.name, recip.id]
+            for donor in data.donors_for(recip.id):
+                row.append(str(donor))
+                has_donation = True
+            if has_donation:
+                w.writerow(row)
+    print(f"Wrote {path}")
 
 
 def update_donor_view(args, data: State) -> None:
@@ -453,8 +475,8 @@ def update_donor_view(args, data: State) -> None:
                 shutil.move(path, candidate)
                 break
 
-    by_donor = {}
-    max_donations = 0
+    by_donor: Dict[int, list[int]] = {}
+    max_donations: int = 0
     for donation in data.new_this_session:
         if donation.donor not in by_donor:
             by_donor[donation.donor] = []
@@ -478,4 +500,3 @@ def update_donor_view(args, data: State) -> None:
                 columns.append(f'{recip.name}, {recip.address} {recip.home_email} {recip.store}{phys} {recip.phone}')
             w.writerow(columns)
     print("Wrote " + path)
-
