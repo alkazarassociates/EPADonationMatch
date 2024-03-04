@@ -156,6 +156,7 @@ def Main():
 
         dd.update_recipient_view(args, data)
         dd.update_donor_view(args, data)
+        dd.update_epaaa_view(args, data)
 
     print(report(result, data))
 

@@ -515,6 +515,33 @@ def update_donor_view(args, data: State) -> None:
             for r in by_donor[donor]:
                 recip = data.recipients[r]
                 phys = '*' if recip.no_e_card else ''
-                columns.append(f'{recip.name}, {recip.address} {recip.home_email} {recip.phone} {recip.store}{phys}   ')
+                columns.append(
+                    f'{recip.name}, {recip.address} {recip.home_email} {recip.phone} {recip.store}{phys}   ')
+            w.writerow(columns)
+    print("Wrote " + path)
+
+
+def update_epaaa_view(args, data: State) -> None:
+    """Create a report for EPA AA to handle sending out its donations."""
+    path = os.path.join(args.memory_dir, 'epaaa_view.csv')
+    if os.path.exists(path):
+        backup_number = 0
+        while True:
+            backup_number += 1
+            candidate = os.path.join(args.memory_dir, 'epaaa_view_' + str(backup_number) + '.old')
+            if not os.path.exists(candidate):
+                shutil.move(path, candidate)
+                break
+
+    donations = [x for x in data.new_this_session if x.donor == ASSOCIATION_ID]
+
+    with open(path, 'w', newline='') as outfile:
+        headings = ['Recipient #', 'Name', 'Address', 'Email', 'Phone', 'Store']
+        w = csv.writer(outfile)
+        w.writerow(headings)
+        for d in donations:
+            recip = data.recipients[d.recipient]
+            columns = [str(recip.id), recip.name, recip.address, recip.home_email,
+                       recip.phone, recip.store + ('*' if recip.no_e_card else '')]
             w.writerow(columns)
     print("Wrote " + path)
