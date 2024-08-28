@@ -474,6 +474,8 @@ def update_recipient_view(args, data: State) -> None:
             for donor in data.donors_for(recip.id):
                 row.append(str(donor))
                 has_donation = True
+            while len(row) < len(headings):
+                row.append('')
             if has_donation:
                 w.writerow(row)
     print(f"Wrote {path}")
@@ -517,6 +519,8 @@ def update_donor_view(args, data: State) -> None:
                 phys = '*' if recip.no_e_card else ''
                 columns.append(
                     f'{recip.name}, {recip.address} {recip.home_email} {recip.phone} {recip.store}{phys}   ')
+            while len(columns) < len(headings):
+                columns.append('')
             w.writerow(columns)
     print("Wrote " + path)
 
