@@ -12,3 +12,17 @@ mypy unit_test.py
 
 python unit_test.py
 
+@echo Testing sample data
+@del /q test_data\*
+update_donors.py sample_data\dw1.csv --memory-dir test_data
+update_recipients.py sample_data\rw1.csv --memory-dir test_data
+donation_match.py --memory-dir test_data
+@echo ----
+update_donors.py sample_data\dw2.csv --memory-dir test_data
+update_recipients.py sample_data\rw2.csv --memory-dir test_data
+donation_match.py --memory-dir test_data
+@echo ----
+update_donors.py sample_data\dw3.csv --memory-dir test_data
+update_recipients.py sample_data\rw3.csv --memory-dir test_data
+donation_match.py --memory-dir test_data
+

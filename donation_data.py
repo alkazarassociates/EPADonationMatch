@@ -277,7 +277,7 @@ class State:
         return len(self._donations_to[recipient.id])
 
     def donors_for(self, recip_id: int) -> list[int]:
-        return self._donations_to[recip_id]
+        return sorted(self._donations_to[recip_id])
 
     def donations_from(self, donor: Donor) -> int:
         return len(self._donations_from[donor.id])
@@ -457,6 +457,14 @@ def _write_csv_file(args, filename, things):
 def update_recipient_view(args, data: State) -> None:
     """Write an auditable report of all recipients"""
     path = os.path.join(args.memory_dir, 'recipient_view.csv')
+    if os.path.exists(path):
+        backup_number = 0
+        while True:
+            backup_number += 1
+            candidate = os.path.join(args.memory_dir, 'recipient_view_' + str(backup_number) + '.old')
+            if not os.path.exists(candidate):
+                shutil.move(path, candidate)
+                break
     with open(path, 'w', newline='') as outfile:
         max_donations = 0
         for recip in data.valid_recipients():
@@ -510,7 +518,7 @@ def update_donor_view(args, data: State) -> None:
     with open(path, 'w', newline='') as outfile:
         w = csv.writer(outfile)
         w.writerow(headings)
-        for donor in by_donor:
+        for donor in sorted(by_donor):
             columns = [data.donors[donor].first, data.donors[donor].last,
                        data.donors[donor].email, data.donors[donor].pledges,
                        data.donors[donor].id]
