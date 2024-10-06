@@ -490,17 +490,35 @@ def _write_csv_file(filename, things):
             w.writerow(dataclasses.asdict(thing).values())
 
 
+def _backup_name(original_fn: Path) -> Path:
+    """
+    Find a good backup name for this file.
+    Keep the extension.
+    Number backups sequentially.
+    Add 'old' to the name to make it clear.
+    """
+    name = original_fn.stem
+    backup_number = 0
+    while True:
+        backup_number += 1
+        candidate = original_fn.with_stem(f"old_{name}_{backup_number}")
+        if not candidate.exists():
+            return candidate
+
+
+def _backup_if_needed(file_to_write: Path) -> None:
+    """
+    If the file we are about to write exists, backup
+    the existing copy.
+    """
+    if file_to_write.exists():
+        shutil.move(file_to_write, _backup_name(file_to_write))
+
+
 def update_recipient_view(args, data: State) -> None:
     """Write an auditable report of all recipients"""
-    path = os.path.join(args.memory_dir, 'recipient_view.csv')
-    if os.path.exists(path):
-        backup_number = 0
-        while True:
-            backup_number += 1
-            candidate = os.path.join(args.memory_dir, 'recipient_view_' + str(backup_number) + '.old')
-            if not os.path.exists(candidate):
-                shutil.move(path, candidate)
-                break
+    path = Path(args.memory_dir, 'recipient_view.csv')
+    _backup_if_needed(path)
     with open(path, 'w', newline='') as outfile:
         max_donations = 0
         for recip in data.valid_recipients():
@@ -527,15 +545,8 @@ def update_recipient_view(args, data: State) -> None:
 
 def update_donor_view(args, data: State) -> None:
     """Create a report ready for mail merge of new donations."""
-    path = os.path.join(args.memory_dir, 'donation_view.csv')
-    if os.path.exists(path):
-        backup_number = 0
-        while True:
-            backup_number += 1
-            candidate = os.path.join(args.memory_dir, 'donation_view_' + str(backup_number) + '.old')
-            if not os.path.exists(candidate):
-                shutil.move(path, candidate)
-                break
+    path = Path(args.memory_dir, 'donation_view.csv')
+    _backup_if_needed(path)
 
     by_donor: Dict[int, list[int]] = {}
     max_donations: int = 0
@@ -566,20 +577,13 @@ def update_donor_view(args, data: State) -> None:
             while len(columns) < len(headings):
                 columns.append('')
             w.writerow(columns)
-    print("Wrote " + path)
+    print(f"Wrote {path}")
 
 
 def update_epaaa_view(args, data: State) -> None:
     """Create a report for EPA AA to handle sending out its donations."""
-    path = os.path.join(args.memory_dir, 'epaaa_view.csv')
-    if os.path.exists(path):
-        backup_number = 0
-        while True:
-            backup_number += 1
-            candidate = os.path.join(args.memory_dir, 'epaaa_view_' + str(backup_number) + '.old')
-            if not os.path.exists(candidate):
-                shutil.move(path, candidate)
-                break
+    path = Path(args.memory_dir, 'epaaa_view.csv')
+    _backup_if_needed(path)
 
     donations = [x for x in data.new_this_session if x.donor == ASSOCIATION_ID]
 
@@ -592,4 +596,4 @@ def update_epaaa_view(args, data: State) -> None:
             columns = [str(recip.id), recip.name, recip.address, recip.home_email,
                        recip.phone, recip.store + ('*' if recip.no_e_card else '')]
             w.writerow(columns)
-    print("Wrote " + path)
+    print(f"Wrote {path}")
