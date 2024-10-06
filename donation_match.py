@@ -152,11 +152,13 @@ def Main():
     result = donation_match(data)
 
     if result.success:
-        dd.save_state(args, data)
-
+        # Don't update the saved state unless all the reports
+        # can be updated.
         dd.update_recipient_view(args, data)
         dd.update_donor_view(args, data)
         dd.update_epaaa_view(args, data)
+
+        dd.save_state(args, data)
 
     print(report(result, data))
 

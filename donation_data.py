@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import dataclasses
 import datetime
 import os
+from pathlib import Path
 import re
 import shutil
 from typing import DefaultDict, Dict, Optional
@@ -435,16 +436,51 @@ def load_state(args):
 
 
 def save_state(args, data: State):
-    _write_csv_file(args, 'recipients.csv', data.recipients.values())
-    _write_csv_file(args, 'donors.csv', data.donors.values())
-    _write_csv_file(args, 'donations.csv', data.donations)
+    # Delete .tmp files
+    # Write .tmp files
+    # Transaction:
+    #  Rename .csv to .bak
+    #  Rename .tmp to .csv
+    state_to_save = {
+        Path(args.memory_dir, 'recipients.csv'): data.recipients.values(),
+        Path(args.memory_dir, 'donors.csv'): data.donors.values(),
+        Path(args.memory_dir, 'donations.csv'): data.donations
+    }
+    for fn in state_to_save.keys():
+        fn.with_suffix('.tmp').unlink(True)
+
+    for fn in state_to_save.keys():
+        _write_csv_file(fn.with_suffix('.tmp'), state_to_save[fn])
+
+    to_rollback = []
+    delete_on_success = []
+    try:
+        for fn in state_to_save.keys():
+            csv_fn = fn.with_suffix('.csv')
+            if csv_fn.exists():
+                bak_fn = csv_fn.with_suffix('.bak')
+                csv_fn.rename(bak_fn)
+                to_rollback.append((csv_fn, bak_fn))
+                delete_on_success.append(bak_fn)
+            tmp_fn = fn.with_suffix('.tmp')
+            tmp_fn.rename(csv_fn)
+            print(f"Wrote {csv_fn}")
+            to_rollback.append((tmp_fn, csv_fn))
+        # All successful!  No need to rollback.
+        to_rollback = []
+        for fn in delete_on_success:
+            fn.unlink()
+    finally:
+        for rb in reversed(to_rollback):
+            original, renamed = rb
+            renamed.rename(original)  # Roll it back
 
 
-def _write_csv_file(args, filename, things):
+def _write_csv_file(filename, things):
     if not things:
+        filename.touch()
         return
-    path = os.path.join(args.memory_dir, filename)
-    with open(path, 'w', newline='') as outfile:
+    with open(filename, 'w', newline='') as outfile:
         wrote_headers = False
         w = csv.writer(outfile)
         for thing in things:

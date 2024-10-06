@@ -3,7 +3,11 @@ Test the functionality of individual parts of donation_match.
 """
 
 import donation_data as dd
+
+import copy
 from dataclasses import dataclass, FrozenInstanceError
+import pathlib
+import tempfile
 import unittest
 
 
@@ -125,6 +129,109 @@ class TestRecipient(unittest.TestCase):
         self.assertEqual(result.errors, ['Duplicate email addresses used for Adam Ant and Charlie Cheater'])
         self.assertEqual(result.warnings, [
             'Duplicate recipient found:\n bob barker, Recipient # 104\nmight be\n Bob Barker, Recipient # 102'])
+
+
+class Mock:
+    pass
+
+
+@dataclass
+class MockThing:
+    id: int
+    first: str
+    last: str
+
+
+@dataclass
+class MockDonation:
+    donor: int
+    recip: int
+
+
+class TestDataSave(unittest.TestCase):
+    def setUp(self):
+        self.test_directory = tempfile.TemporaryDirectory()
+        self.args = Mock()
+        self.args.memory_dir = self.test_directory.name
+        self.data = Mock()
+        self.data.recipients = {100: MockThing(100, 'Mike', 'Elkins'),
+                                101: MockThing(101, 'Chuck', 'Elkins')}
+        self.data.donors = {1: MockThing(1, 'Aretha', 'Franklin'),
+                            2: MockThing(2, 'Elvis', 'Presley')}
+        self.data.donations = [MockDonation(1, 100), MockDonation(2, 101)]
+
+    def tearDown(self):
+        self.test_directory.cleanup()
+
+    def test_save_state(self):
+        # Create a new fixture
+        # Write out some data.
+        dd.save_state(self.args, self.data)
+        self.check_data(self.data)
+
+    def check_data(self, data):
+        recips = dd.load_csv(pathlib.Path(self.args.memory_dir, 'recipients.csv'))
+        self.assertEqual(len(recips), len(data.recipients))
+        for r in recips:
+            original = data.recipients[int(r['id'])]
+            for k in r:
+                self.assertEqual(r[k], str(getattr(original, k)))
+        donors = dd.load_csv(pathlib.Path(self.args.memory_dir, 'donors.csv'))
+        self.assertEqual(len(donors), len(data.donors))
+        for d in donors:
+            original = data.donors[int(d['id'])]
+            for k in d:
+                self.assertEqual(d[k], str(getattr(original, k)))
+        donations = dd.load_csv(pathlib.Path(self.args.memory_dir, 'donations.csv'))
+        self.assertEqual(len(donations), len(data.donations))
+        for i in range(len(donations)):
+            original = data.donations[i]
+            for k in donations[i]:
+                self.assertEqual(donations[i][k], str(getattr(original, k)))
+
+    def test_multi_save(self):
+        dd.save_state(self.args, self.data)
+        self.check_data(self.data)
+        self.data.recipients[102] = MockThing(102, 'Cheryl', 'Elkins')
+        self.data.donors[2].last = 'Costello'
+        dd.save_state(self.args, self.data)
+        self.check_data(self.data)
+
+    def test_save_failure(self):
+        sub_cases = {
+            'recipients.tmp': False,
+            'donors.tmp': False,
+            'donations.tmp': False,
+            'recipients.csv': False,
+            'donors.csv': False,
+            'donations.csv': False,
+            'recipients.bak': False,
+            'donors.bak': False,
+            'donations.bak': False,
+        }
+        original_data = self.data
+        changed_data = copy.deepcopy(self.data)
+        changed_data.recipients[102] = MockThing(102, 'Cheryl', 'Elkins')
+        changed_data.donors[2].last = 'Costello'
+        for subcase in sub_cases:
+            print(f"\nSubcase {subcase}")
+            with self.subTest(filename=subcase):
+                fn = pathlib.Path(self.args.memory_dir, subcase)
+                delete_at_end = False
+                dd.save_state(self.args, original_data)
+                self.check_data(original_data)
+                if not fn.exists():
+                    fn.touch()
+                    delete_at_end = True
+                with fn.open('r') as f:
+                    with self.assertRaises((PermissionError, FileExistsError)):
+                        dd.save_state(self.args, changed_data)
+                    if sub_cases[subcase]:
+                        self.check_data(changed_data)
+                    else:
+                        self.check_data(original_data)
+                if delete_at_end:
+                    fn.unlink()
 
 
 if __name__ == '__main__':
