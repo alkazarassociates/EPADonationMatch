@@ -286,6 +286,9 @@ class State:
     def remaining_pledges(self, donor: Donor) -> int:
         return donor.pledges - self.donations_from(donor)
 
+    def epaaa_donations_to(self, recipient: Recipient) -> int:
+        return len([donor for donor in self._donations_to[recipient.id] if donor == ASSOCIATION_ID])
+
     def calculate_store_count(self, donor: Donor, store: str) -> int:
         total = 0
         for d in self.donations:
@@ -304,13 +307,13 @@ class State:
         return self.has_given(self.recipients[recipient], self.donors[donor])
 
     # TODO Should this be here or in donation_match?
-    def remove_new_pledges(self, recipient: Recipient) -> None:
+    def remove_new_pledges(self, donor: Donor) -> None:
         for d in self.new_this_session:
-            if d.recipient == recipient.id:
+            if d.donor == donor.id:
                 self._donations_to[d.recipient].remove(d.donor)
                 self._donations_from[d.donor].remove(d.recipient)
                 self.donations.remove(d)
-        self.new_this_session = [x for x in self.new_this_session if x.recipient != recipient.id]
+        self.new_this_session = [x for x in self.new_this_session if x.donor != donor.id]
 
     # TODO Move to donation_match.py
     def score(self) -> int:

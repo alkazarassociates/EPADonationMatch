@@ -35,26 +35,28 @@ def recipient_remaining_need(data: dd.State, recipient: dd.Recipient) -> int:
     return DONATIONS_PER_RECIPIENT - data.donations_to(recipient) - EPAAA_DONATIONS
 
 
-def find_valid_pledge(data: dd.State, recipient: dd.Recipient) -> bool:
-    best_donor = None
+def donor_remaining_pledges(data: dd.State, donor: dd.Donor) -> int:
+    return donor.pledges - data.donations_from(donor)
+
+
+def find_valid_pledge(data: dd.State, donor: dd.Donor) -> bool:
+    best_recipient = None
     best_store_count = 0
-    for donor in data.donors.values():
+    for recipient in data.valid_recipients():
         # Requirements:
-        # Not be EPAAA itself
-        # Has pledges remaining
-        # Has not given to this recipient.
-        #   Of those: pick the one with the most cards from this store.
-        if donor.id != dd.ASSOCIATION_ID:
-            if data.remaining_pledges(donor) > 0 and not data.has_given(recipient, donor):
-                store_count = data.calculate_store_count(donor, recipient.store)
-                if best_donor is None:
-                    best_donor = donor
-                    best_store_count = store_count
-                elif store_count > best_store_count:
-                    best_donor = donor
-                    best_store_count = store_count
-    if best_donor is not None:
-        data.pledge(best_donor, recipient)
+        #  Has not received the limit in dondations.
+        #  Has not received from this donor.
+        #  Of those: pick one that matches the stores we've already used.
+        if recipient_remaining_need(data, recipient) > 0 and not data.has_given(recipient, donor):
+            store_count = data.calculate_store_count(donor, recipient.store)
+            if best_recipient is None:
+                best_recipient = recipient
+                best_store_count = store_count
+            elif store_count > best_store_count:
+                best_recipient = recipient
+                best_store_count = store_count
+    if best_recipient is not None:
+        data.pledge(donor, best_recipient)
         return True
     return False
 
@@ -97,23 +99,23 @@ class MatchResult:
     new_donations: int
 
 
-def add_final_pledges(data: dd.State, recipient: dd.Recipient) -> None:
-    while data.donations_to(recipient) < DONATIONS_PER_RECIPIENT:
-        assert data.epaaa is not None
-        data.pledge(data.epaaa, recipient)
+def add_final_pledges(data: dd.State) -> None:
+    assert data.epaaa is not None  # double check that EPAAA is set up.
+    for recipient in data.recipients.values():
+        if recipient_remaining_need(data, recipient) == 0:
+            while data.epaaa_donations_to(recipient) < EPAAA_DONATIONS:
+                data.pledge(data.epaaa, recipient)
 
 
 def donation_match(data: dd.State) -> MatchResult:
     result = MatchResult(success=True, new_donations=0)
-    for recipient in data.valid_recipients():
-        while recipient_remaining_need(data, recipient) > 0:
-            if not find_valid_pledge(data, recipient):
-                data.remove_new_pledges(recipient)
+    for donor in data.donors.values():
+        while donor_remaining_pledges(data, donor) > 0:
+            if not find_valid_pledge(data, donor):
+                data.remove_new_pledges(donor)
                 break
-            # Fill in final pledges.
-            if recipient_remaining_need(data, recipient) == 0:
-                add_final_pledges(data, recipient)
     optimize(data)
+    add_final_pledges(data)  # EPAAA contributions
     data.validate()
     result.new_donations = len(data.new_this_session)
     return result
