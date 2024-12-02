@@ -160,6 +160,7 @@ class State:
         self._recipient_normalized_names: dict[str, tuple[str, int]] = {}  # Also for finding duplicates.
         self._donations_to: DefaultDict[int, list[int]] = defaultdict(list)
         self._donations_from: DefaultDict[int, list[int]] = defaultdict(list)
+        self._prev_donations_to: DefaultDict[int, int] = defaultdict(int)
 
     def update_donors(self, new_donor_list: list[dict]) -> UpdateDonorResult:
         ret = UpdateDonorResult(success=True, new_count=0, warnings=list(), errors=list())
@@ -263,6 +264,7 @@ class State:
         self.donations.append(donation)
         self._donations_to[donation.recipient].append(donation.donor)
         self._donations_from[donation.donor].append(donation.recipient)
+        self._prev_donations_to[donation.recipient] += 1
 
     def pledge(self, donor: Donor, recipient: Recipient) -> None:
         donation = Donation(donor=donor.id, recipient=recipient.id, date=datetime.date.today())
@@ -528,14 +530,24 @@ def update_recipient_view(args, data: State) -> None:
             if data.donations_to(recip) > max_donations:
                 max_donations = data.donations_to(recip)
         w = csv.writer(outfile)
-        headings = ['Name', 'Recipient #', 'Status', 'EPA Email', 'Address', 'Home Email', 'Store', 'Phone']
+        headings = [
+            'Name',
+            'Recipient #',
+            'Status',
+            'EPA Email',
+            'Address',
+            'Home Email',
+            'Store',
+            'Phone',
+            'Previous Donations']
         for i in range(max_donations):
             headings.append(f'Donor {i + 1}')
         w.writerow(headings)
         for recip in data.valid_recipients():
             has_donation = False
             row = [recip.name, recip.id, recip.status, recip.epa_email, recip.address,
-                   recip.home_email, recip.store + ('*' if recip.no_e_card else ''), recip.phone]
+                   recip.home_email, recip.store + ('*' if recip.no_e_card else ''), recip.phone,
+                   data._prev_donations_to[recip.id]]
             for donor in data.donors_for(recip.id):
                 row.append(str(donor))
                 has_donation = True
