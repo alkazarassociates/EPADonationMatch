@@ -133,6 +133,7 @@ def optimize(data: dd.State) -> None:
             iterations = 0
         else:
             iterations += 1
+    print(f"{iterations} with no improvements found.  Optimization complete.")
 
 
 def report(result: MatchResult, data: dd.State) -> str:

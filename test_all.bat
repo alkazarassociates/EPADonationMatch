@@ -22,8 +22,8 @@ mypy unit_test.py
 
 python unit_test.py
 @if ERRORLEVEL 1 goto Failure
-#echo Skip long run
-#goto Success
+rem echo Skip long run
+rem goto Success
 
 
 @echo Testing sample data
