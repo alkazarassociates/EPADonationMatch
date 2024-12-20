@@ -549,7 +549,8 @@ def update_recipient_view(args, data: State) -> None:
             'Home Email',
             'Store',
             'Phone',
-            'Previous Donations']
+            'Previous Donations',
+            'Total Donations']
         for i in range(max_donations):
             headings.append(f'Donor {i + 1}')
         w.writerow(headings)
@@ -557,7 +558,7 @@ def update_recipient_view(args, data: State) -> None:
             has_donation = False
             row = [recip.name, recip.id, recip.status, recip.epa_email, recip.address,
                    recip.home_email, recip.store + ('*' if recip.no_e_card else ''), recip.phone,
-                   data._prev_donations_to[recip.id]]
+                   data._prev_donations_to[recip.id], data.donations_to(recip)]
             for donor in data.donors_for(recip.id):
                 row.append(str(donor))
                 has_donation = True
