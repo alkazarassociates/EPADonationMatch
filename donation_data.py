@@ -156,8 +156,9 @@ class State:
         self.recipients: dict[int, Recipient] = {}
         self.donations: list[Donation] = []
         self.new_this_session: list[Donation] = []
-        self._recipient_emails: dict[str, str] = {}  # For finding duplicates.
+        self._recipient_emails: dict[str, str] = {}  # For finding duplicates of epa_emails.
         self._recipient_normalized_names: dict[str, tuple[str, int]] = {}  # Also for finding duplicates.
+        self._recipient_home_emails: dict[str, str] = {}  # For finding duplicates of home_emails.
         self._donations_to: DefaultDict[int, list[int]] = defaultdict(list)
         self._donations_from: DefaultDict[int, list[int]] = defaultdict(list)
         self._prev_donations_to: DefaultDict[int, int] = defaultdict(int)
@@ -200,7 +201,9 @@ class State:
             assert recipient.id not in self.recipients
             self.recipients[recipient.id] = recipient
             assert recipient.epa_email not in self._recipient_emails
+            assert recipient.home_email not in self._recipient_home_emails
             self._recipient_emails[recipient.epa_email] = recipient.name
+            self._recipient_home_emails[recipient.home_email] = recipient.name
             self._recipient_normalized_names[normalize_name(recipient.name)] = \
                 (recipient.name, recipient.id)
 
@@ -237,6 +240,11 @@ class State:
             result.success = False
             return
         self._recipient_emails[recipient.epa_email] = recipient.name
+        if recipient.home_email in self._recipient_home_emails:
+            result.errors.append("Duplicate home email addresses used for "
+                                 f"{self._recipient_home_emails[recipient.home_email]} and {recipient.name}")
+            result.success = False
+            return
         name = normalize_name(recipient.name)
         if name in self._recipient_normalized_names:
             existing_name, existing_id = self._recipient_normalized_names[name]
@@ -385,6 +393,7 @@ class State:
         # Warn if any invalid recipient has donations.
         for r in self.recipients:
             assert self.recipients[r].epa_email in self._recipient_emails
+            assert self.recipients[r].home_email in self._recipient_home_emails
             assert normalize_name(self.recipients[r].name) in self._recipient_normalized_names
         donation_set = set()
         for donation in self.donations:
@@ -416,8 +425,6 @@ def add_args(arg_parser):
 
 
 def load_csv(filename: str) -> list[dict]:
-    if not os.path.exists(filename):
-        return []
     with open(filename, 'r', newline='') as csvfile:
         r = csv.DictReader(csvfile)
 
@@ -428,14 +435,17 @@ def load_state(args):
     if not os.path.isdir(args.memory_dir):
         os.mkdir(args.memory_dir)
     ret = State()
-    recipient_data = load_csv(os.path.join(args.memory_dir, 'recipients.csv'))
-    if recipient_data:
+    recipient_filename = os.path.join(args.memory_dir, 'recipients.csv')
+    if os.path.exists(recipient_filename):
+        recipient_data = load_csv(recipient_filename)
         ret.load_recipients(recipient_data)
-    donor_data = load_csv(os.path.join(args.memory_dir, 'donors.csv'))
-    if donor_data:
+    donor_filename = os.path.join(args.memory_dir, 'donors.csv')
+    if os.path.exists(donor_filename):
+        donor_data = load_csv(donor_filename)
         ret.load_donors(donor_data)
-    donation_data = load_csv(os.path.join(args.memory_dir, 'donations.csv'))
-    if donation_data:
+    donation_filename = os.path.join(args.memory_dir, 'donations.csv')
+    if os.path.exists(donation_filename):
+        donation_data = load_csv(donation_filename)
         ret.load_donations(donation_data)
     return ret
 

@@ -53,6 +53,7 @@ def Main():
         donation_data.save_state(args, data)
 
     print(report(result, data))
+    return 0 if result.success else 1
 
 
 if __name__ == '__main__':

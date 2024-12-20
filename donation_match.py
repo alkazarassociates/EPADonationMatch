@@ -164,6 +164,8 @@ def Main():
 
     print(report(result, data))
 
+    return 0 if result.success else 1
+
 
 if __name__ == '__main__':
     sys.exit(Main())
