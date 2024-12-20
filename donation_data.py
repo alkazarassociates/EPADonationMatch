@@ -399,7 +399,7 @@ class State:
             for donation in self.donations:
                 if donation.donor == donor:
                     count += 1
-            assert donor == ASSOCIATION_ID or count <= self.donors[donor].pledges
+            assert count <= self.donors[donor].pledges
         for recipient in self.recipients:
             count = 0
             for donation in self.donations:

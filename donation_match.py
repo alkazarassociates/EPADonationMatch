@@ -14,7 +14,7 @@ import donation_data as dd
 
 
 DONATIONS_PER_RECIPIENT: int = 10  # How many gift cards to be received
-EPAAA_DONATIONS: int = 1  # How many slots does EPAA fill?  Set to zero for none.
+
 ITERATION_COUNT = 10000  # How hard to try and optimize.
 
 donor_report_template = """
@@ -32,7 +32,7 @@ Store {Selected}
 
 
 def recipient_remaining_need(data: dd.State, recipient: dd.Recipient) -> int:
-    return DONATIONS_PER_RECIPIENT - data.donations_to(recipient) - EPAAA_DONATIONS
+    return DONATIONS_PER_RECIPIENT - data.donations_to(recipient)
 
 
 def donor_remaining_pledges(data: dd.State, donor: dd.Donor) -> int:
@@ -57,6 +57,12 @@ def find_valid_pledge(data: dd.State, donor: dd.Donor) -> bool:
                 best_store_count = store_count
     if best_recipient is not None:
         data.pledge(donor, best_recipient)
+        # Deal with EPAAA pledges.
+        # We do it here, because we only want to add EPAAA pledges to recipients
+        # already getting donations.
+        if data.epaaa_donations_to(best_recipient) == 0:
+            if donor_remaining_pledges(data, data.donors[dd.ASSOCIATION_ID]) > 0:
+                data.pledge(data.donors[dd.ASSOCIATION_ID], best_recipient)
         return True
     return False
 
@@ -99,23 +105,16 @@ class MatchResult:
     new_donations: int
 
 
-def add_final_pledges(data: dd.State) -> None:
-    assert data.epaaa is not None  # double check that EPAAA is set up.
-    for recipient in data.recipients.values():
-        if recipient_remaining_need(data, recipient) == 0:
-            while data.epaaa_donations_to(recipient) < EPAAA_DONATIONS:
-                data.pledge(data.epaaa, recipient)
-
-
 def donation_match(data: dd.State) -> MatchResult:
     result = MatchResult(success=True, new_donations=0)
     for donor in data.donors.values():
+        if donor.id == dd.ASSOCIATION_ID:
+            continue  # Don't assign all 500 now.
         while donor_remaining_pledges(data, donor) > 0:
             if not find_valid_pledge(data, donor):
                 data.remove_new_pledges(donor)
                 break
     optimize(data)
-    add_final_pledges(data)  # EPAAA contributions
     data.validate()
     result.new_donations = len(data.new_this_session)
     return result
