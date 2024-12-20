@@ -17,8 +17,9 @@ NO_DATE_SUPPLIED = datetime.date(1980, 1, 1)
 ASSOCIATION_ID = 1
 
 
-def object_from_dict(cls, field_mapping, type_mapping, values):
+def object_from_dict(cls, field_mapping, type_mapping, values_raw):
     """Make some object of type cls, mapping fields from values into parameter names."""
+    values = {k.strip(): values_raw[k] for k in values_raw}
     # First check that our object is ok and produce a good error message if not.
     for source_field in field_mapping.values():
         if source_field not in values:
@@ -172,6 +173,8 @@ class State:
             # "Memory" is assumed to be corrected, do not stomp with re-imported data.
             if donor.id in self.donors:
                 continue
+            if not donor.first and not donor.last:
+                continue  # Ignore incomplete donors
             self.donors[donor.id] = donor
             ret.new_count += 1
             if donor.id == ASSOCIATION_ID:
@@ -218,6 +221,8 @@ class State:
         for recipient_dict in new_recipient_list:
             if not recipient_dict['Recipient #']:
                 continue  # Ignore incomplete recipients
+            if not recipient_dict['Name']:
+                continue  # Ignore incomplete recipients this way too.
             recipient = Recipient.from_dict(recipient_dict)
             self.update_recipient(recipient, ret)
             # If we have donations recorded in this recipient list, add them to the database.
