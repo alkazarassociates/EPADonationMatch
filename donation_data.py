@@ -114,9 +114,15 @@ class Recipient:
                          'phone': 'Phone #', 'no_e_card': 'No e-card', 'comments': 'Comments'}
         # Name is actually Name and Address.  Fix it here.
         if 'Address' not in values:
-            name, address = values['Name'].split(',', 1)
-            values['Name'] = name.strip()
-            values['Address'] = address.strip()
+            # We always print Name, Address, so getting the splitting
+            # right is nice-to-have.  But it is nice, to have, IMHO.
+            if ',' in values['Name']:
+                name, address = values['Name'].split(',', 1)
+                values['Name'] = name.strip()
+                values['Address'] = address.strip()
+            else:
+                values['Address'] = ''
+                # keep Name as it is.
         return object_from_dict(Recipient, field_mapping,
                                 {'id': int, 'epa_email': lambda x: x.lower().strip(), 'no_e_card': mark_to_bool},
                                 values)
