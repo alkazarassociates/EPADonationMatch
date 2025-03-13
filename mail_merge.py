@@ -20,7 +20,8 @@ def read_template() -> str:
 
 def send_email(destination: Address, subject_text: str,
                from_address: Address, template: str,
-               data: dict, client: smtplib.SMTP):
+               data: dict, client: smtplib.SMTP,
+               args):
     msg = EmailMessage()
     msg['Subject'] = subject_text
     msg['From'] = from_address
@@ -32,6 +33,8 @@ def send_email(destination: Address, subject_text: str,
     msg.set_content(plain_text_from_template(template, data))
     msg.add_alternative(html_from_template(template, data), subtype='html')
 
+    if args.verbose:
+        print(f"Sending Message: {msg}")
     client.send_message(msg)
 
 
@@ -270,13 +273,13 @@ def Main():
 
         email_template = read_template()
         subject_text = "Your EPAAA Donations"
-        from_address = Address(user)
+        from_address = Address(args.email_user)
 
         for donor in donor_report:
             dest = donor['Email']
             if args.test_destination:
                 dest = args.test_destination
-            send_email(Address(dest), subject_text, from_address, email_template, donor, client)
+            send_email(Address(dest), subject_text, from_address, email_template, donor, client, args)
             if args.stop_early:
                 break
 
