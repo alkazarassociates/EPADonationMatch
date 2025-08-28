@@ -17,14 +17,36 @@ NO_DATE_SUPPLIED = datetime.date(1980, 1, 1)
 ASSOCIATION_ID = 1
 
 
+def PartialKeyFind(values, partial_key):
+    """Given a partial key, return the shortest key in values that contains
+    that text."""
+    if partial_key in values:
+        return partial_key
+    best_key = None
+    for key in values:
+        if (partial_key in key and
+            (best_key is None or len(best_key) > len(key))):
+            best_key = key
+    return best_key
+    
+def LooseLookup(values, partial_key):
+    """Given a partial key, return the value that matches the shortest
+    key containing that text."""
+    # If we have a exact match, that is the best we can do.
+    best_key = PartialKeyFind(values, partial_key)
+    if best_key is None:
+        return None
+    return values[best_key]
+
+
 def object_from_dict(cls, field_mapping, type_mapping, values_raw):
     """Make some object of type cls, mapping fields from values into parameter names."""
     values = {k.strip(): values_raw[k] for k in values_raw}
     # First check that our object is ok and produce a good error message if not.
     for source_field in field_mapping.values():
-        if source_field not in values:
+        if PartialKeyFind(values, source_field) == None:
             raise KeyError(f"Could not find {source_field} in column names: {values.keys()}")
-    parameters = {k: type_mapping.get(k, lambda x: x)(values[field_mapping[k]]) for k in field_mapping}
+    parameters = {k: type_mapping.get(k, lambda x: x)(LooseLookup(values, field_mapping[k])) for k in field_mapping}
     return cls(**parameters)
 
 
@@ -109,20 +131,20 @@ class Recipient:
     @staticmethod
     def from_dict(values):
         """Convert a dict of values into a recipient object"""
-        field_mapping = {'id': 'Recipient #', 'valid': 'TRUE', 'status': 'Status', 'epa_email': 'EPA Email',
-                         'name': 'Name', 'address': 'Address', 'home_email': 'Home Email', 'store': 'Selected',
-                         'phone': 'Phone #', 'no_e_card': 'No e-card', 'comments': 'Comments'}
+        field_mapping = {'id': 'Respondent', 'valid': 'Validity', 'status': 'Employment Status', 'epa_email': 'EPA Email',
+                         'name': 'Name', 'address': 'Address', 'home_email': 'Home Email', 'store': 'store for which you would',
+                         'phone': 'Phone #', 'no_e_card': 'No printer or smartphone', 'comments': 'comments'}
         # Name is actually Name and Address.  Fix it here.
         if 'Address' not in values:
             # We always print Name, Address, so getting the splitting
             # right is nice-to-have.  But it is nice, to have, IMHO.
-            if ',' in values['Name']:
-                name, address = values['Name'].split(',', 1)
+            if ',' in LooseLookup(values, 'Name and Address'):
+                name, address = LooseLookup(values, 'Name and Address').split(',', 1)
                 values['Name'] = name.strip()
                 values['Address'] = address.strip()
             else:
                 values['Address'] = ''
-                # keep Name as it is.
+                values['Name'] = LooseLookup(values, 'Name and Address')
         return object_from_dict(Recipient, field_mapping,
                                 {'id': int, 'epa_email': lambda x: x.lower().strip(), 'no_e_card': mark_to_bool},
                                 values)
@@ -207,6 +229,7 @@ class State:
         assert not self.recipients, "Loading recipients twice"
         for recipient_dict in data:
             recipient = Recipient(**convert_fields(Recipient, recipient_dict))
+            print(recipient)
             assert recipient.id not in self.recipients
             self.recipients[recipient.id] = recipient
             assert recipient.epa_email not in self._recipient_emails
@@ -225,11 +248,10 @@ class State:
     def update_recipients(self, new_recipient_list: list[dict]) -> UpdateRecipientResult:
         ret = UpdateRecipientResult(success=True, new_count=0, new_to_validate=list(), errors=list(), warnings=list())
         for recipient_dict in new_recipient_list:
-            if not recipient_dict['Recipient #']:
+            if not recipient_dict['Respondent #']:
                 continue  # Ignore incomplete recipients
-            if not recipient_dict['Name']:
-                continue  # Ignore incomplete recipients this way too.
             recipient = Recipient.from_dict(recipient_dict)
+            print(recipient)
             self.update_recipient(recipient, ret)
             # If we have donations recorded in this recipient list, add them to the database.
             # This should be unusual, the result of manual editing.
