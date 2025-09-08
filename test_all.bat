@@ -8,8 +8,6 @@ pycodestyle update_recipients.py
 @if ERRORLEVEL 1 goto Failure
 pycodestyle unit_test.py
 @if ERRORLEVEL 1 goto Failure
-pycodestyle mail_merge.py
-@if ERRORLEVEL 1 goto Failure
 
 mypy donation_data.py
 @if ERRORLEVEL 1 goto Failure
@@ -20,8 +18,6 @@ mypy update_donors.py
 mypy update_recipients.py
 @if ERRORLEVEL 1 goto Failure
 mypy unit_test.py
-@if ERRORLEVEL 1 goto Failure
-mypy mail_merge.py
 @if ERRORLEVEL 1 goto Failure
 
 python unit_test.py

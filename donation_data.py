@@ -111,8 +111,8 @@ class Donor:
     @staticmethod
     def from_dict(values):
         """Convert a dict of values into a donor object"""
-        field_mapping = {'first': 'Your First Name', 'last': 'Your Last Name', 'email': 'Personal Email Address', 'id': 'Respondent #', 'pledges': 'number of pledges',
-                         'comments': 'comments' }
+        field_mapping = {'first': 'Your First Name', 'last': 'Your Last Name', 'email': 'Personal Email Address',
+                         'id': 'Respondent #', 'pledges': 'number of pledges', 'comments': 'comments'}
         return object_from_dict(Donor, field_mapping, {'pledges': int, 'id': int}, values)
 
 
@@ -136,7 +136,7 @@ class Recipient:
         field_mapping = {'id': 'Respondent', 'valid': 'Validity', 'status': 'Employment Status',
                          'epa_email': 'EPA Email', 'name': 'Name', 'address': 'Address', 'home_email': 'Home Email',
                          'store': 'store for which you would', 'phone': 'Phone #',
-                         'no_e_card': 'No printer or smartphone', 'comments': 'comments'}
+                         'no_e_card': 'No printer or a smartphone', 'comments': 'comments'}
         # Name is actually Name and Address.  Fix it here.
         if 'Address' not in values:
             # We always print Name, Address, so getting the splitting
@@ -198,7 +198,7 @@ class State:
     def update_donors(self, new_donor_list: list[dict]) -> UpdateDonorResult:
         ret = UpdateDonorResult(success=True, new_count=0, warnings=list(), errors=list())
         for donor_dict in new_donor_list:
-            if not donor_dict['Donor #']:
+            if not donor_dict['Respondent #']:
                 continue  # Ignore incomplete donors
             donor = Donor.from_dict(donor_dict)
             # "Memory" is assumed to be corrected, do not stomp with re-imported data.
@@ -232,7 +232,6 @@ class State:
         assert not self.recipients, "Loading recipients twice"
         for recipient_dict in data:
             recipient = Recipient(**convert_fields(Recipient, recipient_dict))
-            print(recipient)
             assert recipient.id not in self.recipients
             self.recipients[recipient.id] = recipient
             assert recipient.epa_email not in self._recipient_emails
@@ -254,7 +253,6 @@ class State:
             if not recipient_dict['Respondent #']:
                 continue  # Ignore incomplete recipients
             recipient = Recipient.from_dict(recipient_dict)
-            print(recipient)
             self.update_recipient(recipient, ret)
             # If we have donations recorded in this recipient list, add them to the database.
             # This should be unusual, the result of manual editing.

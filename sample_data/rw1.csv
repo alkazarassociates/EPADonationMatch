@@ -1,4 +1,4 @@
-Recipient #,TRUE,Status,EPA Email,Name,Home Email,Selected,Phone #,No e-card,Comments,Donor 1,Donor 2,Donor 3,Donor 4,Donor 5,Donor 6,Donor 7,Donor 8,Donor 9,Donor 10
+Respondent #,Validity,Employment Status,EPA Email,Name and Address,Home Email,store for which you would,Phone #,No printer or a smartphone,comments,Donor 1,Donor 2,Donor 3,Donor 4,Donor 5,Donor 6,Donor 7,Donor 8,Donor 9,Donor 10
 1001,TRUE,Empoyee,Recip1Jan@epa.gov,"John O'Connor, 1108 Glendale Drive, Raleigh NC 27612",ajohnoc5@gmail.com,Walmart,,,,,,,,,,,,,
 1002,TRUE,Empoyee,Recip2Feb@epa.gov,"Roy Gamse, 3615 N. Kenilworth Street, Arlington VA 22207-1321",agamses@aol.com,Target,,,,,,,,,,,,,
 1003,TRUE,Empoyee,Recip3Mar@epa.gov,"Gerald Yamada, P.O. Box 1056, Vienna VA 22183",agyamada@gmail.com,CVS,,,,,,,,,,,,,

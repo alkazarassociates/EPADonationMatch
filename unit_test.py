@@ -63,8 +63,9 @@ class TestMiscFunctions(unittest.TestCase):
 
 class TestDonar(unittest.TestCase):
     def test_donor_parse(self):
-        d1 = dd.Donor.from_dict({'First': 'Mike', 'Last': 'Elkins', 'Email': 'foo@example.com', 'Pledge units': '8',
-                                 'Comments': 'test', 'Donor #': '25'})
+        d1 = dd.Donor.from_dict({'Your First Name': 'Mike', 'Your Last Name': 'Elkins',
+                                 'Personal Email Address': 'foo@example.com', 'number of pledges': '8',
+                                 'comments': 'test', 'Respondent #': '25'})
         self.assertEqual(d1.first, 'Mike')
         self.assertEqual(d1.last, 'Elkins')
         self.assertEqual(d1.email, 'foo@example.com')
@@ -77,11 +78,12 @@ class TestDonar(unittest.TestCase):
 
 class TestRecipient(unittest.TestCase):
     def test_recipient_parse(self):
-        r1 = dd.Recipient.from_dict({'Recipient #': '109', 'TRUE': 'In process', 'Status': 'watching tv',
-                                     'EPA Email': 'aXz@Epa.Gov',
-                                     'Name': 'Howard The Duck, 400 Penslyvania Ave, Washington, DC', 'No e-card': '',
-                                     'Home Email': 'foo@bar.com', 'Selected': 'Petco', 'Phone #': '867-5309',
-                                     'Comments': 'quack'})
+        r1 = dd.Recipient.from_dict({'Respondent #': '109', 'Validity': 'In process',
+                                     'Employment Status': 'watching tv', 'EPA Email': 'aXz@Epa.Gov',
+                                     'Name and Address': 'Howard The Duck, 400 Penslyvania Ave, Washington, DC',
+                                     'No printer or a smartphone': '',
+                                     'Home Email': 'foo@bar.com', 'store for which you would': 'Petco',
+                                     'Phone #': '867-5309', 'comments': 'quack'})
         self.assertEqual(r1.id, 109)
         self.assertFalse(r1.is_valid())
         self.assertEqual(r1.status, 'watching tv')
@@ -93,10 +95,11 @@ class TestRecipient(unittest.TestCase):
         self.assertEqual(r1.phone, '867-5309')
         self.assertFalse(r1.no_e_card)
         self.assertEqual(r1.comments, 'quack')
-        r2 = dd.Recipient.from_dict({'Recipient #': '110', 'TRUE': 'True', 'Status': 'eating candy',
+        r2 = dd.Recipient.from_dict({'Respondent #': '110', 'Validity': 'True', 'Employment Status': 'eating candy',
                                      'EPA Email': 'ZXz@Epa.Gov', 'Name': 'Squirel Girl', 'Address': 'Stark Tower, NYC',
-                                     'No e-card': 'X', 'Home Email': 'foo@bar.com', 'Selected': 'Petco',
-                                     'Phone #': '867-5309', 'Comments': 'nuttin'})
+                                     'No printer or a smartphone': 'X', 'Home Email': 'foo@bar.com',
+                                     'store for which you would': 'Petco', 'Phone #': '867-5309',
+                                     'comments': 'nuttin'})
         self.assertEqual(r2.id, 110)
         self.assertTrue(r2.is_valid())
         self.assertEqual(r2.status, 'eating candy')
