@@ -111,8 +111,8 @@ class Donor:
     @staticmethod
     def from_dict(values):
         """Convert a dict of values into a donor object"""
-        field_mapping = {'first': 'First', 'last': 'Last', 'email': 'Email', 'pledges': 'Pledge units',
-                         'comments': 'Comments', 'id': 'Donor #'}
+        field_mapping = {'first': 'Your First Name', 'last': 'Your Last Name', 'email': 'Personal Email Address', 'id': 'Respondent #', 'pledges': 'number of pledges',
+                         'comments': 'comments' }
         return object_from_dict(Donor, field_mapping, {'pledges': int, 'id': int}, values)
 
 
