@@ -25,10 +25,12 @@ def PartialKeyFind(values, partial_key):
     best_key = None
     for key in values:
         if (partial_key in key and
-            (best_key is None or len(best_key) > len(key))):
+            (best_key is None or
+             len(best_key) > len(key))):
             best_key = key
     return best_key
-    
+
+
 def LooseLookup(values, partial_key):
     """Given a partial key, return the value that matches the shortest
     key containing that text."""
@@ -44,7 +46,7 @@ def object_from_dict(cls, field_mapping, type_mapping, values_raw):
     values = {k.strip(): values_raw[k] for k in values_raw}
     # First check that our object is ok and produce a good error message if not.
     for source_field in field_mapping.values():
-        if PartialKeyFind(values, source_field) == None:
+        if PartialKeyFind(values, source_field) is None:
             raise KeyError(f"Could not find {source_field} in column names: {values.keys()}")
     parameters = {k: type_mapping.get(k, lambda x: x)(LooseLookup(values, field_mapping[k])) for k in field_mapping}
     return cls(**parameters)
@@ -131,9 +133,10 @@ class Recipient:
     @staticmethod
     def from_dict(values):
         """Convert a dict of values into a recipient object"""
-        field_mapping = {'id': 'Respondent', 'valid': 'Validity', 'status': 'Employment Status', 'epa_email': 'EPA Email',
-                         'name': 'Name', 'address': 'Address', 'home_email': 'Home Email', 'store': 'store for which you would',
-                         'phone': 'Phone #', 'no_e_card': 'No printer or smartphone', 'comments': 'comments'}
+        field_mapping = {'id': 'Respondent', 'valid': 'Validity', 'status': 'Employment Status',
+                         'epa_email': 'EPA Email', 'name': 'Name', 'address': 'Address', 'home_email': 'Home Email',
+                         'store': 'store for which you would', 'phone': 'Phone #',
+                         'no_e_card': 'No printer or smartphone', 'comments': 'comments'}
         # Name is actually Name and Address.  Fix it here.
         if 'Address' not in values:
             # We always print Name, Address, so getting the splitting
