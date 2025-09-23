@@ -136,7 +136,7 @@ class Recipient:
         field_mapping = {'id': 'Respondent', 'valid': 'Validity', 'status': 'Employment Status',
                          'epa_email': 'EPA Email', 'name': 'Name', 'address': 'Address', 'home_email': 'Home Email',
                          'store': 'store for which you would', 'phone': 'Phone #',
-                         'no_e_card': 'No printer or a smartphone', 'comments': 'comments'}
+                         'no_e_card': 'No printer or smartphone', 'comments': 'comments'}
         # Name is actually Name and Address.  Fix it here.
         if 'Address' not in values:
             # We always print Name, Address, so getting the splitting
