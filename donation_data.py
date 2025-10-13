@@ -637,7 +637,8 @@ def update_donor_view(args, data: State) -> None:
                 recip = data.recipients[r]
                 phys = '*' if recip.no_e_card else ''
                 columns.append(
-                    f'{recip.name}, {recip.address} {recip.home_email} {recip.phone} {recip.store}{phys}   ')
+                    f'{recip.name};   {recip.address};   {recip.home_email};'
+                    f'   {recip.phone};   {recip.store}{phys}   ')
             while len(columns) < len(headings):
                 columns.append('')
             w.writerow(columns)
