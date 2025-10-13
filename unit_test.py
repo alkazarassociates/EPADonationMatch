@@ -81,7 +81,7 @@ class TestRecipient(unittest.TestCase):
         r1 = dd.Recipient.from_dict({'Respondent #': '109', 'Validity': 'In process',
                                      'Employment Status': 'watching tv', 'EPA Email': 'aXz@Epa.Gov',
                                      'Name and Address': 'Howard The Duck, 400 Penslyvania Ave, Washington, DC',
-                                     'No printer or a smartphone': '',
+                                     'No printer or smartphone': '',
                                      'Home Email': 'foo@bar.com', 'store for which you would': 'Petco',
                                      'Phone #': '867-5309', 'comments': 'quack'})
         self.assertEqual(r1.id, 109)
@@ -97,7 +97,7 @@ class TestRecipient(unittest.TestCase):
         self.assertEqual(r1.comments, 'quack')
         r2 = dd.Recipient.from_dict({'Respondent #': '110', 'Validity': 'True', 'Employment Status': 'eating candy',
                                      'EPA Email': 'ZXz@Epa.Gov', 'Name': 'Squirel Girl', 'Address': 'Stark Tower, NYC',
-                                     'No printer or a smartphone': 'X', 'Home Email': 'foo@bar.com',
+                                     'No printer or smartphone': 'X', 'Home Email': 'foo@bar.com',
                                      'store for which you would': 'Petco', 'Phone #': '867-5309',
                                      'comments': 'nuttin'})
         self.assertEqual(r2.id, 110)

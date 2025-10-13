@@ -14,7 +14,7 @@ from typing import DefaultDict, Dict, Optional
 
 
 NO_DATE_SUPPLIED = datetime.date(1980, 1, 1)
-ASSOCIATION_ID = 1
+ASSOCIATION_EMAIL = 'epaalumni@aol.com'
 
 
 def PartialKeyFind(values, partial_key):
@@ -208,14 +208,14 @@ class State:
                 continue  # Ignore incomplete donors
             self.donors[donor.id] = donor
             ret.new_count += 1
-            if donor.id == ASSOCIATION_ID:
+            if donor.email.lower() == ASSOCIATION_EMAIL.lower():
                 assert self.epaaa is None
                 self.epaaa = donor
         # By the time we are done updating donors, even the first time, we should have
         # The EPAAA defined.
         if self.epaaa is None:
             ret.success = False
-            ret.errors.append(f"No definition for EPAAA as a donor with ID {ASSOCIATION_ID}")
+            ret.errors.append(f"Add EPAAA as a donor with email {ASSOCIATION_EMAIL}")
         return ret
 
     def load_donors(self, data) -> None:
@@ -224,7 +224,7 @@ class State:
             donor = Donor(**convert_fields(Donor, donor_dict))
             assert donor.id not in self.donors
             self.donors[donor.id] = donor
-            if donor.id == ASSOCIATION_ID:
+            if donor.email.lower() == ASSOCIATION_EMAIL.lower():
                 assert not self.epaaa
                 self.epaaa = donor
 
@@ -235,7 +235,8 @@ class State:
             assert recipient.id not in self.recipients
             self.recipients[recipient.id] = recipient
             assert recipient.epa_email not in self._recipient_emails
-            assert recipient.home_email not in self._recipient_home_emails
+            assert (recipient.home_email == '' or recipient.home_email not in self._recipient_home_emails), \
+                f"Data has duplicate email: {recipient.home_email}"
             self._recipient_emails[recipient.epa_email] = recipient.name
             self._recipient_home_emails[recipient.home_email] = recipient.name
             self._recipient_normalized_names[normalize_name(recipient.name)] = \
@@ -331,7 +332,8 @@ class State:
         return donor.pledges - self.donations_from(donor)
 
     def epaaa_donations_to(self, recipient: Recipient) -> int:
-        return len([donor for donor in self._donations_to[recipient.id] if donor == ASSOCIATION_ID])
+        assert self.epaaa
+        return len([donor for donor in self._donations_to[recipient.id] if donor == self.epaaa.id])
 
     def calculate_store_count(self, donor: Donor, store: str) -> int:
         total = 0
@@ -366,7 +368,8 @@ class State:
         for r in self.recipients.values():
             total += 100 * self.donations_to(r)
         for donor in self.donors.values():
-            if donor.id == ASSOCIATION_ID:
+            assert self.epaaa
+            if donor.id == self.epaaa.id:
                 continue
             stores: Counter = Counter()
             for recipient_id in self._donations_from[donor.id]:
@@ -610,8 +613,9 @@ def update_donor_view(args, data: State) -> None:
 
     by_donor: Dict[int, list[int]] = {}
     max_donations: int = 0
+    assert data.epaaa
     for donation in data.new_this_session:
-        if donation.donor == ASSOCIATION_ID:
+        if donation.donor == data.epaaa.id:
             continue
         if donation.donor not in by_donor:
             by_donor[donation.donor] = []
@@ -645,7 +649,8 @@ def update_epaaa_view(args, data: State) -> None:
     path = Path(args.memory_dir, 'epaaa_view.csv')
     _backup_if_needed(path)
 
-    donations = [x for x in data.new_this_session if x.donor == ASSOCIATION_ID]
+    assert data.epaaa
+    donations = [x for x in data.new_this_session if x.donor == data.epaaa.id]
 
     with open(path, 'w', newline='') as outfile:
         headings = ['Recipient #', 'Name', 'Address', 'Email', 'Phone', 'Store']

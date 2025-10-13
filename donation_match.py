@@ -42,6 +42,7 @@ def donor_remaining_pledges(data: dd.State, donor: dd.Donor) -> int:
 def find_valid_pledge(data: dd.State, donor: dd.Donor) -> bool:
     best_recipient = None
     best_store_count = 0
+    assert data.epaaa
     for recipient in data.valid_recipients():
         # Requirements:
         #  Has not received the limit in dondations.
@@ -61,8 +62,8 @@ def find_valid_pledge(data: dd.State, donor: dd.Donor) -> bool:
         # We do it here, because we only want to add EPAAA pledges to recipients
         # already getting donations.
         if data.epaaa_donations_to(best_recipient) == 0:
-            if donor_remaining_pledges(data, data.donors[dd.ASSOCIATION_ID]) > 0:
-                data.pledge(data.donors[dd.ASSOCIATION_ID], best_recipient)
+            if donor_remaining_pledges(data, data.epaaa) > 0:
+                data.pledge(data.epaaa, best_recipient)
         return True
     return False
 
@@ -71,7 +72,8 @@ def try_to_swap(data: dd.State) -> bool:
     previous_score = data.score()
     new_index1 = random.randrange(len(data.new_this_session))
     donation1 = data.new_this_session[new_index1]
-    if donation1.donor == dd.ASSOCIATION_ID:
+    assert data.epaaa
+    if donation1.donor == data.epaaa.id:
         return False
     new_index2 = random.randrange(len(data.new_this_session))
     if new_index1 == new_index2:
@@ -81,7 +83,7 @@ def try_to_swap(data: dd.State) -> bool:
         return False
     if donation1.donor == donation2.donor:
         return False
-    if donation2.donor == dd.ASSOCIATION_ID:
+    if donation2.donor == data.epaaa.id:
         return False
     if data.has_given_id(donation1.recipient, donation2.donor):
         return False
@@ -106,9 +108,10 @@ class MatchResult:
 
 
 def donation_match(data: dd.State) -> MatchResult:
+    assert data.epaaa
     result = MatchResult(success=True, new_donations=0)
     for donor in data.donors.values():
-        if donor.id == dd.ASSOCIATION_ID:
+        if donor.id == data.epaaa.id:
             continue  # Don't assign all 500 now.
         while donor_remaining_pledges(data, donor) > 0:
             if not find_valid_pledge(data, donor):
