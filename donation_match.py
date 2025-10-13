@@ -13,7 +13,11 @@ import cProfile
 import donation_data as dd
 
 
-DONATIONS_PER_RECIPIENT: int = 10  # How many gift cards to be received
+# How many gift cards to be received
+DONATIONS_PER_RECIPIENT: int = 10
+# How many recipients each donor can have per wave.
+# This is a limitation of the mail merge step.
+MAX_DONATIONS_PER_WAVE: int = 10
 
 ITERATION_COUNT = 10000  # How hard to try and optimize.
 
@@ -113,10 +117,12 @@ def donation_match(data: dd.State) -> MatchResult:
     for donor in data.donors.values():
         if donor.id == data.epaaa.id:
             continue  # Don't assign all 500 now.
-        while donor_remaining_pledges(data, donor) > 0:
+        session_donation_count = 0
+        while donor_remaining_pledges(data, donor) > 0 and session_donation_count < MAX_DONATIONS_PER_WAVE:
             if not find_valid_pledge(data, donor):
                 data.remove_new_pledges(donor)
                 break
+            session_donation_count += 1
     optimize(data)
     data.validate()
     result.new_donations = len(data.new_this_session)
