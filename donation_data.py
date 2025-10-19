@@ -199,6 +199,7 @@ class State:
         ret = UpdateDonorResult(success=True, new_count=0, warnings=list(), errors=list())
         for donor_dict in new_donor_list:
             if not donor_dict['Respondent #']:
+                ret.warnings.append(f"No 'Respondent #' for {donor_dict.values()}")
                 continue  # Ignore incomplete donors
             donor = Donor.from_dict(donor_dict)
             # "Memory" is assumed to be corrected, do not stomp with re-imported data.
