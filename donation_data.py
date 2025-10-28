@@ -60,7 +60,13 @@ def convert_fields(cls, values):
             if field.type == bool:
                 values[field.name] = text_to_bool(values[field.name])
             if field.type == datetime.date:
-                values[field.name] = datetime.date.fromisoformat(values[field.name])
+                if '/' in values[field.name]:
+                    # Someone loaded this with excel...  have to fix.
+                    m, d, y = [int(x) for x in values[field.name].split('/')]
+                    values[field.name] = datetime.date(y, m, d)
+                else:
+                    # Our preferred format.
+                    values[field.name] = datetime.date.fromisoformat(values[field.name])
             else:
                 values[field.name] = field.type(values[field.name])
     return values

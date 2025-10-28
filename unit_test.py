@@ -6,6 +6,7 @@ import donation_data as dd
 
 import copy
 from dataclasses import dataclass, FrozenInstanceError
+import datetime
 import pathlib
 import tempfile
 import unittest
@@ -144,6 +145,9 @@ class MockThing:
     first: str
     last: str
 
+    def is_valid(this):
+        return True
+
 
 @dataclass
 class MockDonation:
@@ -235,6 +239,36 @@ class TestDataSave(unittest.TestCase):
                         self.check_data(original_data)
                 if delete_at_end:
                     fn.unlink()
+
+    def test_donation_parse_standard(self):
+        state = dd.State()
+        state.recipients = self.data.recipients
+        state.load_donations([{'donor': 1, 'recipient': 101, 'date': '2025-10-17'},
+                              {'donor': 2, 'recipient': 101, 'date': '2025-10-17'}])
+        self.assertEqual(len(state.donations), 2)
+        self.assertEqual(state.donations[0].donor, 1)
+        self.assertEqual(state.donations[0].recipient, 101)
+        self.assertEqual(state.donations[0].date, datetime.date(2025, 10, 17))
+
+        self.assertEqual(state.donations[1].donor, 2)
+        self.assertEqual(state.donations[1].recipient, 101)
+        self.assertEqual(state.donations[1].date, datetime.date(2025, 10, 17))
+
+    def test_donation_parse_excel(self):
+        """If we load and save in excel, the donation file
+        gets its dates reformatted"""
+        state = dd.State()
+        state.recipients = self.data.recipients
+        state.load_donations([{'donor': 1, 'recipient': 101, 'date': '10/17/2025'},
+                              {'donor': 2, 'recipient': 101, 'date': '10/17/2025'}])
+        self.assertEqual(len(state.donations), 2)
+        self.assertEqual(state.donations[0].donor, 1)
+        self.assertEqual(state.donations[0].recipient, 101)
+        self.assertEqual(state.donations[0].date, datetime.date(2025, 10, 17))
+
+        self.assertEqual(state.donations[1].donor, 2)
+        self.assertEqual(state.donations[1].recipient, 101)
+        self.assertEqual(state.donations[1].date, datetime.date(2025, 10, 17))
 
 
 if __name__ == '__main__':
