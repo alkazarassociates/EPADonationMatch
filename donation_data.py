@@ -105,6 +105,18 @@ def normalize_name(text: str) -> str:
     return words[0] + ' ' + words[-1]
 
 
+def initial_int(text: str) -> int:
+    """Pull an initial integer out of a string, ignoring the rest."""
+    text = text.strip()
+    # Find first non-numeric character
+    for i in range(len(text)):
+        if not text[i].isdigit():
+            break
+    else:
+        i = len(text)
+    return int(text[:i])
+
+
 @dataclass(frozen=True)
 class Donor:
     first: str
@@ -119,7 +131,7 @@ class Donor:
         """Convert a dict of values into a donor object"""
         field_mapping = {'first': 'Your First Name', 'last': 'Your Last Name', 'email': 'Personal Email Address',
                          'id': 'Respondent #', 'pledges': 'number of pledges', 'comments': 'comments'}
-        return object_from_dict(Donor, field_mapping, {'pledges': int, 'id': int}, values)
+        return object_from_dict(Donor, field_mapping, {'pledges': initial_int, 'id': int}, values)
 
 
 @dataclass(frozen=True)
@@ -212,6 +224,7 @@ class State:
             if donor.id in self.donors:
                 continue
             if not donor.first and not donor.last:
+                ret.warnings.append(f"No first or last name for donor {donor.id}")
                 continue  # Ignore incomplete donors
             self.donors[donor.id] = donor
             ret.new_count += 1
@@ -452,7 +465,8 @@ class State:
             for donation in self.donations:
                 if donation.donor == donor:
                     count += 1
-            assert count <= self.donors[donor].pledges
+            assert count <= self.donors[donor].pledges, (f"Donor {self.donors[donor].last} has {count} "
+                                                         f"out of {self.donors[donor].pledges} donations")
         for recipient in self.recipients:
             count = 0
             for donation in self.donations:

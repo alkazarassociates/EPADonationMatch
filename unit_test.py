@@ -61,6 +61,19 @@ class TestMiscFunctions(unittest.TestCase):
         for name, expected in test_cases.items():
             self.assertEqual(dd.normalize_name(name), expected)
 
+    def test_initial_int(self):
+        test_cases = {
+            '5': 5,
+            '12': 12,
+            ' 4': 4,
+            ' 0 ': 0,
+            '5x20': 5,
+            '20 of $20': 20,
+            '8,2,3': 8,
+        }
+        for text, expected in test_cases.items():
+            self.assertEqual(dd.initial_int(text), expected)
+
 
 class TestDonar(unittest.TestCase):
     def test_donor_parse(self):
