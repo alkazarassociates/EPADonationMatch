@@ -77,6 +77,10 @@ def text_to_bool(text: str) -> bool:
         return True
     if text.lower() == 'false':
         return False
+    if text.lower() == 'yes':
+        return True
+    if text.lower() == 'no':
+        return False
     raise ValueError(f"Expected a TRUE or FALSE value, but got '{text}'")
 
 
@@ -87,6 +91,13 @@ def mark_to_bool(text: str) -> bool:
     if text.lower() == 'x':
         return True
     raise ValueError(f"Expected blank or 'x', but got '{text}'")
+
+
+def yes_or_blank(value: bool) -> str:
+    if value:
+        return 'YES'
+    else:
+        return ''
 
 
 def normalize_name(text: str) -> str:
@@ -123,6 +134,7 @@ class Donor:
     last: str
     email: str
     pledges: int
+    employee: bool
     comments: str
     id: int
 
@@ -130,7 +142,8 @@ class Donor:
     def from_dict(values):
         """Convert a dict of values into a donor object"""
         field_mapping = {'first': 'Your First Name', 'last': 'Your Last Name', 'email': 'Personal Email Address',
-                         'id': 'Respondent #', 'pledges': 'number of pledges', 'comments': 'comments'}
+                         'id': 'Respondent #', 'pledges': 'number of pledges', 'employee': 'you a current',
+                         'comments': 'comments'}
         return object_from_dict(Donor, field_mapping, {'pledges': initial_int, 'id': int}, values)
 
 
@@ -241,6 +254,8 @@ class State:
     def load_donors(self, data) -> None:
         assert not self.donors, "Loading donors twice"
         for donor_dict in data:
+            if 'employee' not in donor_dict:
+                donor_dict['employee'] = None
             donor = Donor(**convert_fields(Donor, donor_dict))
             assert donor.id not in self.donors
             self.donors[donor.id] = donor
@@ -644,7 +659,7 @@ def update_donor_view(args, data: State) -> None:
         if len(by_donor[donation.donor]) > max_donations:
             max_donations = len(by_donor[donation.donor])
 
-    headings = ['First', 'Last', 'Email', 'Pledge', 'Donor #']
+    headings = ['First', 'Last', 'Email', 'Pledge', 'Assigned', 'Employee', 'Donor #']
     for i in range(max_donations):
         headings.append('Recipient ' + str(i + 1))
     with open(path, 'w', newline='') as outfile:
@@ -653,6 +668,7 @@ def update_donor_view(args, data: State) -> None:
         for donor in sorted(by_donor):
             columns = [data.donors[donor].first, data.donors[donor].last,
                        data.donors[donor].email, data.donors[donor].pledges,
+                       data.donations_from(data.donors[donor]), yes_or_blank(data.donors[donor].employee),
                        data.donors[donor].id]
             for r in by_donor[donor]:
                 recip = data.recipients[r]

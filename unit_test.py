@@ -43,10 +43,8 @@ class TestMiscFunctions(unittest.TestCase):
         self.assertFalse(dd.text_to_bool('false'))
         self.assertTrue(dd.mark_to_bool('X'))
         self.assertFalse(dd.mark_to_bool(''))
-        with self.assertRaises(ValueError):
-            dd.text_to_bool('Yes')
-        with self.assertRaises(ValueError):
-            dd.text_to_bool('No')
+        self.assertTrue(dd.text_to_bool('Yes'))
+        self.assertFalse(dd.text_to_bool('No'))
         with self.assertRaises(ValueError):
             dd.mark_to_bool('?')
 
@@ -78,8 +76,8 @@ class TestMiscFunctions(unittest.TestCase):
 class TestDonar(unittest.TestCase):
     def test_donor_parse(self):
         d1 = dd.Donor.from_dict({'Your First Name': 'Mike', 'Your Last Name': 'Elkins',
-                                 'Personal Email Address': 'foo@example.com', 'number of pledges': '8',
-                                 'comments': 'test', 'Respondent #': '25'})
+                                 'Personal Email Address': 'foo@example.com', '4. Are you a current': 'No',
+                                 'number of pledges': '8', 'comments': 'test', 'Respondent #': '25'})
         self.assertEqual(d1.first, 'Mike')
         self.assertEqual(d1.last, 'Elkins')
         self.assertEqual(d1.email, 'foo@example.com')
