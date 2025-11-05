@@ -73,6 +73,8 @@ def convert_fields(cls, values):
 
 
 def text_to_bool(text: str) -> bool:
+    if text is None:
+        return False
     if text.lower() == 'true':
         return True
     if text.lower() == 'false':
