@@ -111,7 +111,7 @@ class MatchResult:
     new_donations: int
 
 
-def donation_match(data: dd.State) -> MatchResult:
+def donation_match(args, data: dd.State) -> MatchResult:
     assert data.epaaa
     result = MatchResult(success=True, new_donations=0)
     for donor in data.donors.values():
@@ -120,7 +120,12 @@ def donation_match(data: dd.State) -> MatchResult:
         session_donation_count = 0
         while donor_remaining_pledges(data, donor) > 0 and session_donation_count < MAX_DONATIONS_PER_WAVE:
             if not find_valid_pledge(data, donor):
-                data.remove_new_pledges(donor)
+                # Normally don't assign any donations to a donor who won't
+                # be getting all of their pledges.  '--mop-up' can be
+                # specified to assign any remaining pledges if this isn't
+                # desired.
+                if not args.mop_up:
+                    data.remove_new_pledges(donor)
                 break
             session_donation_count += 1
     optimize(data)
@@ -156,11 +161,12 @@ def Main():
         prog='donation_match',
         description="Match donors to recipients")
     dd.add_args(parser)
+    parser.add_argument('--mop-up', action='store_true')
     args = parser.parse_args()
 
     data = dd.load_state(args)
 
-    result = donation_match(data)
+    result = donation_match(args, data)
 
     if result.success:
         # Don't update the saved state unless all the reports
